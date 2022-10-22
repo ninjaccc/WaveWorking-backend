@@ -24,6 +24,7 @@
     "@nestjs/mapped-types": "*",
     "@nestjs/mongoose": "^9.2.0",
     "@nestjs/platform-express": "^9.0.0",
+    "@nestjs/swagger": "^6.1.2",
     "@nestjs/typeorm": "^9.0.1",
     "mongoose": "^6.6.5",
     "mysql2": "^2.3.3",
