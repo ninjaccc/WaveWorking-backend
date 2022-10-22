@@ -22,9 +22,6 @@ export class User extends Document {
 
   @Prop()
   createdAt: Date;
-
-  @Prop()
-  updatedAt: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

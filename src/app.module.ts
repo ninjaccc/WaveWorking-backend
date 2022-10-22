@@ -9,7 +9,11 @@ import { UsersModule } from './users/users.module';
   imports: [
     ConfigModule.forRoot(),
     MongooseModule.forRoot(
-      `mongodb+srv://${process.env.MONGO_NAME}:${process.env.MONGO_PASSWORD}@cluster.grcveci.mongodb.net/?retryWrites=true&w=majority`,
+      `mongodb+srv://${encodeURIComponent(
+        process.env.MONGO_NAME,
+      )}:${encodeURIComponent(
+        process.env.MONGO_PASSWORD,
+      )}@cluster0.q9hzcmn.mongodb.net/?retryWrites=true&w=majority`,
     ),
     UsersModule,
   ],
