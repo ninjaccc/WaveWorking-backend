@@ -17,6 +17,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './user.schema';
+import ParseObjectIdPipe from '../../pipes/parse-object-id.pipe';
 
 @ApiTags('users')
 @Controller('users')
@@ -55,7 +56,7 @@ export class UsersController {
     description: 'The found record',
     type: User,
   })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseObjectIdPipe) id: string) {
     return this.usersService.findOne(id);
   }
 
@@ -63,7 +64,10 @@ export class UsersController {
   /*--------------------------------------------*/
   @Patch(':id')
   @ApiBearerAuth()
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+  update(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
     return this.usersService.update(id, updateUserDto);
   }
 
@@ -71,7 +75,7 @@ export class UsersController {
   /*--------------------------------------------*/
   @Delete(':id')
   @ApiBearerAuth()
-  removeOne(@Param('id') id: string) {
+  removeOne(@Param('id', ParseObjectIdPipe) id: string) {
     return this.usersService.remove(id);
   }
 
