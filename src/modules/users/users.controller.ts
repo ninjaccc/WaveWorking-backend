@@ -56,7 +56,7 @@ export class UsersController {
     type: User,
   })
   findOne(@Param('id') id: string) {
-    return this.usersService.findOne(+id);
+    return this.usersService.findOne(id);
   }
 
   /* Update User Info */
@@ -64,7 +64,7 @@ export class UsersController {
   @Patch(':id')
   @ApiBearerAuth()
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(+id, updateUserDto);
+    return this.usersService.update(id, updateUserDto);
   }
 
   /* Delete Single User */
@@ -72,7 +72,7 @@ export class UsersController {
   @Delete(':id')
   @ApiBearerAuth()
   removeOne(@Param('id') id: string) {
-    return this.usersService.remove(+id);
+    return this.usersService.remove(id);
   }
 
   /* Delete All User(only for testing) */
