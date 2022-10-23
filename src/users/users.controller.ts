@@ -23,12 +23,16 @@ import { User } from './user.schema';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  /* Create User */
+  /*--------------------------------------------*/
   @Post()
   @ApiBearerAuth()
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
 
+  /* Get All Users */
+  /*--------------------------------------------*/
   @Get()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all users' })
@@ -42,6 +46,8 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  /* Get Single Users */
+  /*--------------------------------------------*/
   @Get(':id')
   @ApiBearerAuth()
   @ApiResponse({
@@ -53,15 +59,27 @@ export class UsersController {
     return this.usersService.findOne(+id);
   }
 
+  /* Update User Info */
+  /*--------------------------------------------*/
   @Patch(':id')
   @ApiBearerAuth()
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(+id, updateUserDto);
   }
 
+  /* Delete Single User */
+  /*--------------------------------------------*/
   @Delete(':id')
   @ApiBearerAuth()
-  remove(@Param('id') id: string) {
+  removeOne(@Param('id') id: string) {
     return this.usersService.remove(+id);
+  }
+
+  /* Delete All User(only for testing) */
+  /*--------------------------------------------*/
+  @Delete()
+  @ApiBearerAuth()
+  remove() {
+    return this.usersService.remove();
   }
 }

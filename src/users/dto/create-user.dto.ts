@@ -5,6 +5,7 @@ import {
   IsEmail,
   MinLength,
   MaxLength,
+  IsNumber,
 } from 'class-validator';
 
 export class CreateUserDto {
@@ -45,6 +46,7 @@ export class CreateUserDto {
 
   // gender
   @IsNotEmpty()
+  @IsNumber()
   @ApiProperty({
     example: 0,
     description: 'gender number. 0 is women, 1 is man',
