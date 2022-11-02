@@ -10,8 +10,13 @@ RUN yarn build
 
 
 FROM node:16.10.0 as release
+
 WORKDIR /app
-COPY ./dist ./package.json /app/
+
+COPY ./dist /app/dist/
+COPY ./package.json ./.env /app/
+
+RUN yarn install
 
 EXPOSE 3000
 
