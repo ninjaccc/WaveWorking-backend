@@ -1,5 +1,5 @@
 # Node version
-FROM node:16.10.0 as builder
+FROM node:16.10.0-slim as builder
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ RUN yarn install
 RUN yarn build
 
 
-FROM node:16.10.0 as release
+FROM node:16.10.0-slim as release
 
 WORKDIR /app
 
