@@ -7,10 +7,10 @@ import {
   Param,
   Delete,
   Query,
+  HttpException,
 } from '@nestjs/common';
 import { MusicService } from './music.service';
-import { AddMusicUrlDto } from './dto/add-music-url.dto';
-import { AddMusicUrlOnTimeDto } from './dto/add-music-url-on-time.dto';
+import { AddMusicByUrlOrIdDto } from './dto/add-music-by-url-or-id.dto';
 
 @Controller('music')
 export class MusicController {
@@ -21,8 +21,25 @@ export class MusicController {
     return this.musicService.searchByQuery(query);
   }
 
+  @Post()
+  async addByUrlOrId(@Body() addMusicByUrlOrIdDto: AddMusicByUrlOrIdDto) {
+    return this.musicService.addByUrlOrId(addMusicByUrlOrIdDto);
+  }
+
+  // --------------------
+  // use for testing
   @Get(':id')
   getInfo(@Param('id') id: string) {
     return this.musicService.getInfoById(id);
+  }
+
+  @Get()
+  getAll() {
+    return this.musicService.getAll();
+  }
+
+  @Delete()
+  removeAll() {
+    return this.musicService.removeAll();
   }
 }

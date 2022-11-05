@@ -7,6 +7,15 @@ export type MusicDocument = Music & Document;
 
 @Schema()
 export class Music extends Document {
+  // music origin id(from youtube or others side)
+  @Prop()
+  @ApiProperty({
+    example: '0IA3ZvCkRkQ',
+    format: 'string',
+    required: true,
+  })
+  musicId: string;
+
   // music name
   @Prop()
   @ApiProperty({
@@ -32,7 +41,6 @@ export class Music extends Document {
   @ApiProperty({
     example: 'https://youtu.be/Dnz-BTz9eDU',
     format: 'string',
-    required: true,
   })
   url: string;
 
@@ -57,6 +65,14 @@ export class Music extends Document {
     required: true,
   })
   createdAt: Date;
+
+  // on time
+  @Prop()
+  @ApiProperty({
+    example: '2022-09-22T12:40:56.757',
+    format: 'string',
+  })
+  onTime: Date;
 }
 
 export const MusicSchema = SchemaFactory.createForClass(Music);
