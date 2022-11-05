@@ -4,6 +4,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './modules/users/users.module';
+import { MusicModule } from './modules/music/music.module';
+import { YoutubeModule } from './modules/youtube/youtube.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { UsersModule } from './modules/users/users.module';
       )}@cluster0.q9hzcmn.mongodb.net/?retryWrites=true&w=majority`,
     ),
     UsersModule,
+    MusicModule,
+    YoutubeModule,
   ],
   controllers: [AppController],
   providers: [AppService],
