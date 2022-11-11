@@ -9,7 +9,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -76,7 +76,7 @@
     "testEnvironment": "node"
   },
   "engines": {
-    "node": ">= 16",
+    "node": ">= 16.10.0",
     "npm": ">= 6.13.4",
     "yarn": ">= 1.21.1"
   }
