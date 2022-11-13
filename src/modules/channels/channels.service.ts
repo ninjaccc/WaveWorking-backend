@@ -6,13 +6,17 @@ import { AddChannelDto } from './dto/add-channel.dto';
 
 @Injectable()
 export class ChannelsService {
-  constructor(@InjectModel(Channel.name) private channelModel: Model<ChannelDocument>) {}
+  constructor(
+    @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
+  ) {}
 
   async add(addChannelDto: AddChannelDto) {
     const newChannel = await this.channelModel.create({
       name: addChannelDto.name,
       createdAt: Date.now(),
-      image: addChannelDto.image || 'https://cdn-icons-png.flaticon.com/128/4185/4185501.png',
+      image:
+        addChannelDto.image ||
+        'https://cdn-icons-png.flaticon.com/128/4185/4185501.png',
     });
 
     return newChannel.save();

@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Delete,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Query } from '@nestjs/common';
 import { MusicService } from './music.service';
 import { AddMusicByUrlOrIdDto } from './dto/add-music-by-url-or-id.dto';
 import { ApiTags } from '@nestjs/swagger';
