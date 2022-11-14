@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { CacheModule, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
@@ -10,9 +10,12 @@ import { ChannelsModule } from './modules/channels/channels.module';
 
 @Module({
   imports: [
+    CacheModule.register(),
     ConfigModule.forRoot(),
     MongooseModule.forRoot(
-      `mongodb+srv://${encodeURIComponent(process.env.MONGO_NAME)}:${encodeURIComponent(
+      `mongodb+srv://${encodeURIComponent(
+        process.env.MONGO_NAME,
+      )}:${encodeURIComponent(
         process.env.MONGO_PASSWORD,
       )}@cluster0.q9hzcmn.mongodb.net/?retryWrites=true&w=majority`,
     ),
