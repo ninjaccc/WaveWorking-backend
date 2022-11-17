@@ -16,7 +16,9 @@ import { ChannelsModule } from './modules/channels/channels.module';
         process.env.MONGO_NAME,
       )}:${encodeURIComponent(
         process.env.MONGO_PASSWORD,
-      )}@cluster0.q9hzcmn.mongodb.net/?retryWrites=true&w=majority`,
+      )}@cluster0.q9hzcmn.mongodb.net/${encodeURIComponent(
+        process.env.MONGO_COLLECTION_NAME,
+      )}?retryWrites=true&w=majority`,
     ),
     UsersModule,
     MusicModule,
