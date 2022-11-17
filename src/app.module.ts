@@ -12,7 +12,9 @@ import { ChannelsModule } from './modules/channels/channels.module';
   imports: [
     ConfigModule.forRoot(),
     MongooseModule.forRoot(
-      `mongodb+srv://${encodeURIComponent(process.env.MONGO_NAME)}:${encodeURIComponent(
+      `mongodb+srv://${encodeURIComponent(
+        process.env.MONGO_NAME,
+      )}:${encodeURIComponent(
         process.env.MONGO_PASSWORD,
       )}@cluster0.q9hzcmn.mongodb.net/?retryWrites=true&w=majority`,
     ),
