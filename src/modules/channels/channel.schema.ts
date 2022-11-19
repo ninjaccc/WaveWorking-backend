@@ -1,11 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 import { ApiProperty } from '@nestjs/swagger';
 
-export type ChannelDocument = Channel & Document;
+export type ChannelDocument = HydratedDocument<Channel>;
 
 @Schema()
-export class Channel extends Document {
+export class Channel {
   // name
   @Prop()
   @ApiProperty({

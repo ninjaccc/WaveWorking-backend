@@ -1,12 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document } from 'mongoose';
+import mongoose, { HydratedDocument } from 'mongoose';
 import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../users/user.schema';
 
-export type MusicDocument = Music & Document;
+export type MusicDocument = HydratedDocument<Music>;
 
 @Schema()
-export class Music extends Document {
+export class Music {
   // music origin id(from youtube or others side)
   @Prop()
   @ApiProperty({
