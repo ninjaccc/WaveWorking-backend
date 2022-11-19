@@ -7,9 +7,11 @@ import { UsersModule } from './modules/users/users.module';
 import { MusicModule } from './modules/music/music.module';
 import { YoutubeModule } from './modules/youtube/youtube.module';
 import { ChannelsModule } from './modules/channels/channels.module';
+import { EventsModule } from './modules/events/events.module';
 
 @Module({
   imports: [
+    EventsModule,
     CacheModule.register(),
     ConfigModule.forRoot(),
     MongooseModule.forRoot(
