@@ -16,7 +16,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"name\": \"dj special\",\r\n    \"thumbnail\": \"https://cdn-icons-png.flaticon.com/512/1913/1913879.png\",\r\n    \"password\": \"abcd1234\"\r\n}",
+							"raw": "{\r\n    \"name\": \"test\",\r\n    \"thumbnail\": \"https://cdn-icons-png.flaticon.com/512/1913/1913879.png\",\r\n    \"password\": \"\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -30,6 +30,60 @@
 							],
 							"path": [
 								"channels"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "join",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"我是測試訪客\",\r\n    \"channelId\": \"https://cdn-icons-png.flaticon.com/512/1913/1913879.png\",\r\n    \"channelPassword\": \"uhuklhukh\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/channels/join",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"channels",
+								"join"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "join-dj",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\": \"jun@gmail.com\",\r\n    \"password\": \"abcd1234\",\r\n    \"channelId\": \"\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/channels/join-dj",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"channels",
+								"join-dj"
 							]
 						}
 					},
