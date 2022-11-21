@@ -20,7 +20,7 @@ import { EventsModule } from './modules/events/events.module';
       )}:${encodeURIComponent(
         process.env.MONGO_PASSWORD,
       )}@cluster0.q9hzcmn.mongodb.net/${encodeURIComponent(
-        process.env.MONGO_COLLECTION_NAME,
+        process.env.MONGO_DB_NAME,
       )}?retryWrites=true&w=majority`,
     ),
     UsersModule,
