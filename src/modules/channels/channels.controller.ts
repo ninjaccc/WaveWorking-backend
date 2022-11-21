@@ -8,6 +8,13 @@ import { JoinChannelAsGuestDto } from './dto/join-channel-as-guest.dto';
 export class ChannelsController {
   constructor(private readonly channelsService: ChannelsService) {}
 
+  /* get all channel info for user */
+  /*--------------------------------------------*/
+  @Get()
+  getInfoList() {
+    return this.channelsService.getChannelInfoList();
+  }
+
   /* guest join to specific channel, and return this channel token */
   /*--------------------------------------------*/
   @Post('/join')
@@ -40,12 +47,12 @@ export class ChannelsController {
     return this.channelsService.getById(id);
   }
 
-  @Get()
+  @Get('/system-only')
   getAll() {
     return this.channelsService.getAll();
   }
 
-  @Delete()
+  @Delete('/system-only')
   removeAll() {
     return this.channelsService.removeAll();
   }

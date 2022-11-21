@@ -116,6 +116,23 @@ export class ChannelsService {
     return this.channelModel.findById(channelId);
   }
 
+  /** 取得頻道列表，僅包含客戶端需要知道之資訊 */
+  async getChannelInfoList() {
+    const channelList = await this.channelModel
+      .find()
+      .where()
+      .select('-createdAt');
+    return channelList.map((channel) => {
+      const { _id, name, thumbnail } = channel;
+      return {
+        _id,
+        name,
+        thumbnail,
+        isLock: !!channel.password,
+      };
+    });
+  }
+
   // below is only use for testing
   // --------------------------------
   // --------------------------------
