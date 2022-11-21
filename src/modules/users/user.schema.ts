@@ -27,7 +27,7 @@ export class User {
   email: string;
 
   // password
-  @Prop()
+  @Prop({ select: false })
   @ApiProperty({
     example: 'password',
     format: 'string',
