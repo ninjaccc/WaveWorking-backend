@@ -3,9 +3,16 @@ import { ChannelsService } from './channels.service';
 import { ChannelsController } from './channels.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Channel, ChannelSchema } from './channel.schema';
+import { UsersModule } from '../users/users.module';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
+    UsersModule,
+    // #TODO 待確認怎麼用，先放著
+    JwtModule.register({
+      secret: process.env.JWT_SECRET,
+    }),
     MongooseModule.forFeature([
       {
         name: Channel.name,

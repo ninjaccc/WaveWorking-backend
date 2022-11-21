@@ -7,7 +7,7 @@ import {
   IsOptional,
 } from 'class-validator';
 
-export class AddChannelDto {
+export class JoinChannelAsGuestDto {
   // name
   @IsNotEmpty()
   @IsString()
@@ -22,23 +22,21 @@ export class AddChannelDto {
   })
   name: string;
 
-  // image
-  @IsOptional()
+  // channel id
+  @IsNotEmpty()
   @IsString()
   @ApiProperty({
-    example: 'https://cdn-icons-png.flaticon.com/128/4185/4185501.png',
-    description: 'The image of the channel',
+    description: 'The id of the channel',
     format: 'string',
   })
-  thumbnail?: string;
+  channelId: string;
 
-  // password
+  // channel password
   @IsOptional()
   @IsString()
   @ApiProperty({
-    example: 'GsHEVHyQ8pQalnww8fg.V2yxiC',
     description: 'The password of the channel',
     format: 'string',
   })
-  password?: string;
+  channelPassword: string;
 }
