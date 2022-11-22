@@ -10,13 +10,30 @@
 			"name": "channels",
 			"item": [
 				{
+					"name": "getInfoList",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/channels",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"channels"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "add",
 					"request": {
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"name\": \"test\",\r\n    \"thumbnail\": \"https://cdn-icons-png.flaticon.com/512/1913/1913879.png\",\r\n    \"password\": \"\"\r\n}",
+							"raw": "{\r\n    \"name\": \"common\",\r\n    \"thumbnail\": \"https://cdn-icons-png.flaticon.com/512/1913/1913879.png\",\r\n    \"password\": \"\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -42,7 +59,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"name\": \"我是測試訪客\",\r\n    \"channelId\": \"https://cdn-icons-png.flaticon.com/512/1913/1913879.png\",\r\n    \"channelPassword\": \"uhuklhukh\"\r\n}",
+							"raw": "{\r\n    \"name\": \"我是測試訪客\",\r\n    \"channelId\": \"637b38f08e32166d5c5202fa\",\r\n    \"channelPassword\": \"test\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -69,7 +86,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"email\": \"jun@gmail.com\",\r\n    \"password\": \"abcd1234\",\r\n    \"channelId\": \"\"\r\n}",
+							"raw": "{\r\n    \"email\": \"jun@gmail.com\",\r\n    \"password\": \"abcd1234\",\r\n    \"channelId\": \"637b39228e32166d5c5202fd\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -95,12 +112,13 @@
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{local3000}}/channels",
+							"raw": "{{local3000}}/channels/system-only",
 							"host": [
 								"{{local3000}}"
 							],
 							"path": [
-								"channels"
+								"channels",
+								"system-only"
 							]
 						}
 					},
@@ -112,12 +130,13 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{url}}/channels",
+							"raw": "{{url}}/channels/system-only",
 							"host": [
 								"{{url}}"
 							],
 							"path": [
-								"channels"
+								"channels",
+								"system-only"
 							]
 						}
 					},
@@ -277,7 +296,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"name\": \"wins8888\",\r\n    \"email\": \"wins8888@gmail.com\",\r\n    \"password\": \"wins8888\",\r\n    \"gender\": 1\r\n}",
+							"raw": "{\r\n    \"name\": \"jun\",\r\n    \"email\": \"jun@gmail.com\",\r\n    \"password\": \"abcd1234\",\r\n    \"gender\": 0\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -332,6 +351,12 @@
 					"response": []
 				}
 			]
+		}
+	],
+	"variable": [
+		{
+			"key": "url",
+			"value": "localhost:3000"
 		}
 	]
 }
