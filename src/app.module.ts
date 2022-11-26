@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { CacheModule, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
@@ -7,9 +7,12 @@ import { UsersModule } from './modules/users/users.module';
 import { MusicModule } from './modules/music/music.module';
 import { YoutubeModule } from './modules/youtube/youtube.module';
 import { ChannelsModule } from './modules/channels/channels.module';
+import { EventsModule } from './modules/events/events.module';
 
 @Module({
   imports: [
+    EventsModule,
+    CacheModule.register(),
     ConfigModule.forRoot(),
     MongooseModule.forRoot(
       `mongodb+srv://${encodeURIComponent(

@@ -17,6 +17,17 @@ export class Channel {
   })
   name: string;
 
+  // password(can empty)
+  @Prop()
+  @ApiProperty({
+    example: 'password',
+    format: 'string',
+    minLength: 0,
+    maxLength: 20,
+    required: true,
+  })
+  password: string;
+
   // createdAt
   @Prop()
   @ApiProperty({
