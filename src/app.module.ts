@@ -8,9 +8,11 @@ import { MusicModule } from './modules/music/music.module';
 import { YoutubeModule } from './modules/youtube/youtube.module';
 import { ChannelsModule } from './modules/channels/channels.module';
 import { EventsModule } from './modules/events/events.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
+    AuthModule,
     EventsModule,
     CacheModule.register(),
     ConfigModule.forRoot(),
