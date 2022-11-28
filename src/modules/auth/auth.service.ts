@@ -17,7 +17,8 @@ export class AuthService {
   ): Promise<Omit<User, 'password'>> {
     const existUser = await this.usersService
       .findOne({ email })
-      .select('+password');
+      .select('+password')
+      .select('+roleId');
     if (!existUser) {
       return null;
     }
@@ -32,9 +33,8 @@ export class AuthService {
   }
 
   async login(user: any) {
-    const payload = { userId: user._id };
     return {
-      token: this.jwtService.sign(payload),
+      token: this.jwtService.sign(user),
     };
   }
 }

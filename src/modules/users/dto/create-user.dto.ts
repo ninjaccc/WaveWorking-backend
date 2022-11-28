@@ -1,5 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsEmail, MinLength, MaxLength, IsNumber } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsEmail,
+  MinLength,
+  MaxLength,
+  IsNumber,
+  IsOptional,
+} from 'class-validator';
+import { Role } from 'src/constants/role.constant';
 
 export class CreateUserDto {
   // name
@@ -36,6 +45,14 @@ export class CreateUserDto {
     required: true,
   })
   password: string;
+
+  // roleId
+  @IsOptional()
+  @ApiProperty({
+    example: Role.Guest,
+    format: 'number',
+  })
+  roleId?: Role;
 
   // gender
   @IsNotEmpty()

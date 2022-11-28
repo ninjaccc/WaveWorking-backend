@@ -20,6 +20,7 @@ export class UsersService {
       })
     ).toObject();
     delete user.password;
+    delete user.roleId;
     return user;
   }
 

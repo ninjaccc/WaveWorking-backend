@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { ApiProperty } from '@nestjs/swagger';
+import { Role } from '../../constants/role.constant';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -36,6 +37,16 @@ export class User {
     required: true,
   })
   password: string;
+
+  // id of role
+  @Prop({ select: false })
+  @ApiProperty({
+    example: 2,
+    format: 'number',
+    required: true,
+    default: Role.Guest,
+  })
+  roleId: Role;
 
   // gender
   @Prop()
