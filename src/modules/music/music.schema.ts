@@ -55,7 +55,7 @@ export class Music {
 
   // likes
   @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }] })
-  likes: User[];
+  likes: mongoose.Schema.Types.ObjectId[];
 
   // createdAt
   @Prop()
