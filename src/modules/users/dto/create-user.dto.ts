@@ -8,7 +8,7 @@ import {
   IsNumber,
   IsOptional,
 } from 'class-validator';
-import { Role } from 'src/constants/role.constant';
+import { Role } from 'src/modules/auth/role.constant';
 
 export class CreateUserDto {
   // name

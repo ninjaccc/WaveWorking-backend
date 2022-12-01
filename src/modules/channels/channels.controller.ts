@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { SkipJwtAuth } from 'src/modules/auth/role.constant';
 import { ChannelsService } from './channels.service';
 import { AddChannelDto } from './dto/add-channel.dto';
 import { JoinChannelAsDjDto } from './dto/join-channel-as-dj.dto';
@@ -10,6 +11,7 @@ export class ChannelsController {
 
   /* get all channel info for user */
   /*--------------------------------------------*/
+  @SkipJwtAuth()
   @Get()
   getInfoList() {
     return this.channelsService.getChannelInfoList();
@@ -17,6 +19,7 @@ export class ChannelsController {
 
   /* guest join to specific channel, and return this channel token */
   /*--------------------------------------------*/
+  @SkipJwtAuth()
   @Post('/join')
   async joinToChannel(@Body() joinChannelAsGuestDto: JoinChannelAsGuestDto) {
     return this.channelsService.guestJoin(joinChannelAsGuestDto);
@@ -24,6 +27,7 @@ export class ChannelsController {
 
   /* dj join to specific channel, and return this channel token */
   /*--------------------------------------------*/
+  @SkipJwtAuth()
   @Post('/join-dj')
   async joinToChannelAsDj(@Body() joinChannelAsDjDto: JoinChannelAsDjDto) {
     return this.channelsService.djJoin(joinChannelAsDjDto);
@@ -36,19 +40,16 @@ export class ChannelsController {
     return this.channelsService.add(addChannelDto);
   }
 
-  // below is only use for testing
-  // --------------------------------
-  // --------------------------------
-  // --------------------------------
-  // --------------------------------
-  // --------------------------------
+  @SkipJwtAuth()
   @Get(':id')
   getInfo(@Param('id') id: string) {
     return this.channelsService.getById(id);
   }
 
-  @Get('/system-only')
-  getAll() {
+  // 這支不知道為何有問題，求解
+  @SkipJwtAuth()
+  @Get('test')
+  getAllDetail() {
     return this.channelsService.getAll();
   }
 
