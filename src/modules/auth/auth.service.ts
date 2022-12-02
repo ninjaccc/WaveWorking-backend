@@ -3,13 +3,14 @@ import { Injectable } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { User } from '../users/user.schema';
 import { JwtService } from '@nestjs/jwt';
+import { Role } from './role.constant';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   async validateUser(
     email: string,
@@ -17,8 +18,7 @@ export class AuthService {
   ): Promise<Omit<User, 'password'>> {
     const existUser = await this.usersService
       .findOne({ email })
-      .select('+password')
-      .select('+roleId');
+      .select('+password');
     if (!existUser) {
       return null;
     }
@@ -30,6 +30,20 @@ export class AuthService {
 
     const { password, ...restUser } = existUser.toObject();
     return restUser;
+  }
+
+  async validateGoogleUser(email: string, name: string) {
+    const existUser = await this.usersService.findOne({ email });
+    let user;
+    if (!existUser) {
+      user = await this.usersService.createGoogle(email, name);
+    } else {
+      delete existUser.password;
+      delete existUser.roleId;
+      user = existUser;
+    }
+
+    return user;
   }
 
   async login(user: any) {

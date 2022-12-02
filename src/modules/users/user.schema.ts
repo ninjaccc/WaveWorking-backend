@@ -39,7 +39,6 @@ export class User {
   password: string;
 
   // id of role
-  @Prop({ select: false })
   @ApiProperty({
     example: 2,
     format: 'number',
