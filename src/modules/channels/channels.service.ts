@@ -8,11 +8,14 @@ import { AddChannelDto } from './dto/add-channel.dto';
 import { JoinChannelAsDjDto } from './dto/join-channel-as-dj.dto';
 import { JoinChannelAsGuestDto } from './dto/join-channel-as-guest.dto';
 import { JwtService } from '@nestjs/jwt';
+import { AuthService } from '../auth/auth.service';
+import { Role } from '../auth/role.constant';
 
 @Injectable()
 export class ChannelsService {
   constructor(
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
+    private authService: AuthService,
     private userService: UsersService,
     private jwtService: JwtService,
   ) {}
@@ -55,11 +58,13 @@ export class ChannelsService {
         email: 'fake@testmail.com',
         password: 'unknownPassword',
         gender: 1,
+        roleId: Role.Guest,
       });
 
       const token = this.jwtService.sign(
         {
           id: guestUser._id,
+          roleId: guestUser.roleId,
           channelId: currentChannel._id,
         },
         {
@@ -78,18 +83,7 @@ export class ChannelsService {
     const { email, password, channelId } = joinChannelAsDjDto;
 
     try {
-      const currentUser = await this.userService
-        .findOne({ email })
-        .select('+password');
-      if (!currentUser) {
-        throw new Error('cant find this user');
-      }
-
-      const isAuth = await bcrypt.compare(password, currentUser.password);
-      if (!isAuth) {
-        throw new Error('password is not correct!');
-      }
-
+      const currentUser = await this.authService.validateUser(email, password);
       const channel = await this.channelModel.findById(channelId);
       if (!channel) {
         throw new Error('cant find this channel!');
@@ -98,6 +92,7 @@ export class ChannelsService {
       const token = this.jwtService.sign(
         {
           id: currentUser._id,
+          roleId: currentUser.roleId,
           channelId: channel._id,
         },
         {

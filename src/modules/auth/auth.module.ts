@@ -42,5 +42,6 @@ import { GoogleStrategy } from './strategies/google.strategy';
     GoogleAuthGuard,
     GoogleStrategy,
   ],
+  exports: [AuthService],
 })
-export class AuthModule { }
+export class AuthModule {}
