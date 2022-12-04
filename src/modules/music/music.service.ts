@@ -14,19 +14,34 @@ export class MusicService {
   ) {}
 
   async searchByQuery(query: Record<string, string>) {
-    const { q } = query;
-    if (!q) throw new HttpException('should pass string with q, e.g. q=music', 404);
+    const { q, maxResults } = query;
+    if (!q)
+      throw new HttpException('should pass string with q, e.g. q=music', 404);
 
-    const originItems = (await this.youtubeService.searchByQuery(q)).data.items;
-    return originItems.map((item) => ({
-      id: item.id.videoId,
-      image: item.snippet.thumbnails.medium,
-      ...item.snippet,
-    }));
+    if (maxResults && isNaN(Number(maxResults))) {
+      throw new HttpException('maxResults should be a invalid number', 404);
+    }
+
+    const originItems = (
+      await this.youtubeService.searchByQuery(q, Number(maxResults) || 12)
+    ).data.items;
+    return originItems.map((item) => {
+      const { thumbnails, publishedAt, title, channelTitle } = item.snippet;
+      const { duration } = item.contentDetails;
+      return {
+        title,
+        channelTitle,
+        id: item.id,
+        image: thumbnails.medium.url,
+        publishedAt,
+        duration,
+      };
+    });
   }
 
   async getInfoById(id: string): Promise<youtube_v3.Schema$Video | null> {
-    const items = (await this.youtubeService.getInfoByVideoIds([id])).data.items;
+    const items = (await this.youtubeService.getInfoByVideoIds([id])).data
+      .items;
 
     // single id only have one item, so return the first
     return items.length ? items[0] : null;

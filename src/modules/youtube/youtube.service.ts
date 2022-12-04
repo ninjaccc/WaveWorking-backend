@@ -16,10 +16,20 @@ export class YoutubeService {
     auth: auth,
   });
 
-  searchByQuery(query: string) {
-    return this.youtube.search.list({
-      part: [DEFAULT_PART],
-      q: query,
+  async searchByQuery(query: string, maxResults: number) {
+    const videoIdList = (
+      await this.youtube.search.list({
+        part: [DEFAULT_PART],
+        q: query,
+        maxResults,
+      })
+    ).data.items.map((item) => item.id.videoId);
+
+    // 只有使用videos分類才可以取到影片時長
+    return await this.youtube.videos.list({
+      part: [DEFAULT_PART, 'contentDetails'],
+      id: videoIdList,
+      maxResults,
     });
   }
 
