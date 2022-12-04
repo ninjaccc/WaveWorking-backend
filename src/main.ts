@@ -9,6 +9,7 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
   app.useWebSocketAdapter(new WsAdapter(app));
+  app.enableCors();
 
   const config = new DocumentBuilder()
     .setTitle('WaveWorking-backend')

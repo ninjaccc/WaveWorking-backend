@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -18,6 +19,9 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './user.schema';
 import ParseObjectIdPipe from '../../pipes/parse-object-id.pipe';
+import { RolesGuard } from 'src/modules/auth/guards/role.guard';
+import { Role, Roles } from 'src/modules/auth/role.constant';
+import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('users')
 @Controller('users')
@@ -35,6 +39,8 @@ export class UsersController {
   /* Get All Users */
   /*--------------------------------------------*/
   @Get()
+  @UseGuards(RolesGuard)
+  @Roles(Role.Manager, Role.Admin)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all users' })
   @ApiResponse({

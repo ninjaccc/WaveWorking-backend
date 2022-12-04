@@ -6,10 +6,11 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserDocument } from './user.schema';
+import { Role } from 'src/modules/auth/role.constant';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) { }
 
   async create(createUserDto: CreateUserDto) {
     const hashPassword = await bcrypt.hash(createUserDto.password, 12);
@@ -20,6 +21,22 @@ export class UsersService {
       })
     ).toObject();
     delete user.password;
+    delete user.roleId;
+    return user;
+  }
+
+  async createGoogle(email: string, name: string) {
+    const user = (
+      await this.userModel.create({
+        email,
+        name,
+        password: '',
+        gender: 3,
+        roleId: Role.User,
+      })
+    ).toObject();
+    delete user.password;
+    delete user.roleId;
     return user;
   }
 
