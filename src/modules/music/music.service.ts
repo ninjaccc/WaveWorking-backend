@@ -5,6 +5,7 @@ import { Music, MusicDocument } from './music.schema';
 import { Model } from 'mongoose';
 import { YoutubeService } from '../youtube/youtube.service';
 import { youtube_v3 } from 'googleapis';
+import { MusicData } from './music.type';
 
 @Injectable()
 export class MusicService {
@@ -25,26 +26,15 @@ export class MusicService {
     const originItems = (
       await this.youtubeService.searchByQuery(q, Number(maxResults) || 12)
     ).data.items;
-    return originItems.map((item) => {
-      const { thumbnails, publishedAt, title, channelTitle } = item.snippet;
-      const { duration } = item.contentDetails;
-      return {
-        title,
-        channelTitle,
-        id: item.id,
-        image: thumbnails.medium.url,
-        publishedAt,
-        duration,
-      };
-    });
+    return originItems.map((item) => this.transformVideoResponse(item));
   }
 
-  async getInfoById(id: string): Promise<youtube_v3.Schema$Video | null> {
+  async getInfoById(id: string): Promise<MusicData | null> {
     const items = (await this.youtubeService.getInfoByVideoIds([id])).data
       .items;
 
     // single id only have one item, so return the first
-    return items.length ? items[0] : null;
+    return items.length ? this.transformVideoResponse(items[0]) : null;
   }
 
   async getAll() {
@@ -85,19 +75,33 @@ export class MusicService {
       throw new HttpException('cant find this music!', 404);
     }
 
-    const { id: musicId, snippet } = info;
+    const { id: musicId, title, author, image, duration } = info;
 
     const newMusic = await this.musicModel.create({
-      name: snippet.title,
+      name: title,
       musicId,
-      author: snippet.channelTitle,
-      thumbnail: snippet.thumbnails.medium.url,
+      author,
+      thumbnail: image,
+      duration,
       likes: [],
       createdAt: Date.now(),
       onTime: onTime ? new Date(onTime) : null,
     });
 
     return newMusic;
+  }
+
+  transformVideoResponse(item: youtube_v3.Schema$Video): MusicData {
+    const { thumbnails, publishedAt, title, channelTitle } = item.snippet;
+    const { duration } = item.contentDetails;
+    return {
+      title,
+      author: channelTitle,
+      id: item.id,
+      image: thumbnails.medium.url,
+      publishedAt,
+      duration,
+    };
   }
 
   // only for testing

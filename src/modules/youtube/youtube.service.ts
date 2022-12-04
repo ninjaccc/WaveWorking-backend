@@ -8,6 +8,8 @@ const auth = new google.auth.GoogleAuth({
 });
 
 const DEFAULT_PART = 'snippet';
+const DEFAULT_FIELD =
+  'items(id,snippet(publishedAt,title,channelTitle,thumbnails),contentDetails(duration))';
 
 @Injectable()
 export class YoutubeService {
@@ -21,6 +23,7 @@ export class YoutubeService {
       await this.youtube.search.list({
         part: [DEFAULT_PART],
         q: query,
+        fields: 'items(id)',
         maxResults,
       })
     ).data.items.map((item) => item.id.videoId);
@@ -29,15 +32,15 @@ export class YoutubeService {
     return await this.youtube.videos.list({
       part: [DEFAULT_PART, 'contentDetails'],
       id: videoIdList,
+      fields: DEFAULT_FIELD,
       maxResults,
     });
   }
 
   getInfoByVideoIds(ids: string[]) {
     return this.youtube.videos.list({
-      part: [DEFAULT_PART, 'statistics'],
-      fields:
-        'items(id,snippet(publishedAt,channelId,title,description,channelTitle,thumbnails),statistics)',
+      part: [DEFAULT_PART, 'contentDetails'],
+      fields: DEFAULT_FIELD,
       id: [...ids],
     });
   }

@@ -42,7 +42,7 @@ export class Music {
     example: 'https://youtu.be/Dnz-BTz9eDU',
     format: 'string',
   })
-  url: string;
+  url?: string;
 
   // image of music
   @Prop()
@@ -65,6 +65,14 @@ export class Music {
     required: true,
   })
   createdAt: Date;
+
+  // duration
+  @ApiProperty({
+    example: 'PT3M14S',
+    format: 'string',
+    required: true,
+  })
+  duration: string;
 
   // on time
   @Prop()
