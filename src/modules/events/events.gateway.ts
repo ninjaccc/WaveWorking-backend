@@ -71,11 +71,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
     });
 
-    this.sendOnAChannel(
-      client.channelId,
-      this.currentPlayList,
-      'update-playlist',
-    );
+    this.sendToUser(client.userId, this.currentPlayList, 'update-playlist');
   }
 
   /** 某使用者新增歌曲至當前撥放清單 */
@@ -121,6 +117,15 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.clients.forEach((single) => {
       single.send(JSON.stringify(data));
     });
+  }
+
+  sendToUser(userId: string, data: any, event: string) {
+    const currentClient = Array.from(this.server.clients).find(
+      (client) => client.userId === userId,
+    );
+    if (currentClient) {
+      currentClient.send(JSON.stringify({ event, data }));
+    }
   }
 
   sendOnAChannel(channelId: string, data: any, event: string) {
