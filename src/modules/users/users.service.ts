@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt';
-import { Injectable } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -10,14 +10,22 @@ import { Role } from 'src/modules/auth/role.constant';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) { }
+  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
 
   async create(createUserDto: CreateUserDto) {
-    const hashPassword = await bcrypt.hash(createUserDto.password, 12);
+    const { email, password, name, gender } = createUserDto;
+    const existUser = await this.userModel.findOne({ email });
+    if (existUser) {
+      throw new HttpException('exist user!', 404);
+    }
+    const hashPassword = await bcrypt.hash(password, 12);
     const user = (
       await this.userModel.create({
-        ...createUserDto,
+        email,
+        name,
+        gender,
         password: hashPassword,
+        roleId: createUserDto.roleId ?? Role.User,
       })
     ).toObject();
     delete user.password;
