@@ -5,7 +5,7 @@ import { Music, MusicDocument } from './music.schema';
 import { Model } from 'mongoose';
 import { YoutubeService } from '../youtube/youtube.service';
 import { youtube_v3 } from 'googleapis';
-import { MusicData } from './music.type';
+import { AddMusicParams, MusicData, MusicDataDetail } from './music.type';
 
 @Injectable()
 export class MusicService {
@@ -41,16 +41,20 @@ export class MusicService {
     return this.musicModel.find();
   }
 
-  async addByUrlOrId(addMusicByUrlOrIdDto: AddMusicByUrlOrIdDto) {
-    const { url, id, onTime } = addMusicByUrlOrIdDto;
-    if (!url && !id) {
-      throw new HttpException('please select url or id to add music', 404);
+  async add(params: AddMusicParams) {
+    const { url, musicId } = params;
+    if (!url && !musicId) {
+      throw new HttpException('please select url or musicId to add music', 404);
     }
 
-    return id ? this.addById(id, onTime) : this.addByUrl(url, onTime);
+    const id = url && !musicId ? this.getIdByUrl(url) : musicId;
+    return this.create({
+      ...params,
+      musicId: id,
+    });
   }
 
-  async addByUrl(url: string, onTime?: string) {
+  getIdByUrl(url: string) {
     if (!url.includes('youtu')) {
       throw new HttpException(
         'currently, we only have youtube link to search, please use youtube link for add music',
@@ -65,41 +69,42 @@ export class MusicService {
     } else if (url.includes('youtu.be/')) {
       id = url.split('youtu.be/')[1];
     }
-
-    return this.addById(id, onTime);
+    return id;
   }
 
-  async addById(id: string, onTime?: string) {
-    const info = await this.getInfoById(id);
+  async create(params: AddMusicParams) {
+    const { userId, channelId, musicId, onTime } = params;
+    const info = await this.getInfoById(musicId);
     if (!info) {
       throw new HttpException('cant find this music!', 404);
     }
 
-    const { id: musicId, title, author, image, duration } = info;
+    const { name, author, thumbnail, duration } = info;
 
-    const newMusic = await this.musicModel.create({
-      name: title,
-      musicId,
-      author,
-      thumbnail: image,
-      duration,
-      likes: [],
-      createdAt: Date.now(),
-      onTime: onTime ? new Date(onTime) : null,
-    });
-
-    return newMusic;
+    return (
+      await this.musicModel.create({
+        name,
+        musicId,
+        author,
+        thumbnail,
+        duration,
+        userId,
+        channelId,
+        likes: [],
+        createdAt: Date.now(),
+        onTime: onTime ? new Date(onTime) : null,
+      })
+    ).toObject() as unknown as MusicDataDetail;
   }
 
   transformVideoResponse(item: youtube_v3.Schema$Video): MusicData {
-    const { thumbnails, publishedAt, title, channelTitle } = item.snippet;
+    const { thumbnails, title, channelTitle } = item.snippet;
     const { duration } = item.contentDetails;
     return {
-      title,
+      name: title,
       author: channelTitle,
-      id: item.id,
-      image: thumbnails.medium.url,
-      publishedAt,
+      musicId: item.id,
+      thumbnail: thumbnails.medium.url,
       duration,
     };
   }

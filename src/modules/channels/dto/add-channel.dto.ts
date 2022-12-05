@@ -41,4 +41,14 @@ export class AddChannelDto {
     format: 'string',
   })
   password?: string;
+
+  // the channel manager id
+  @IsNotEmpty()
+  @IsString()
+  @ApiProperty({
+    example: '637b8929b8cb2d3eff5273e0',
+    format: 'string',
+    required: true,
+  })
+  managerId: string;
 }

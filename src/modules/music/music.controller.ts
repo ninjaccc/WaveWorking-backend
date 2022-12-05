@@ -1,7 +1,17 @@
-import { Controller, Get, Post, Body, Param, Delete, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Query,
+  Request,
+} from '@nestjs/common';
 import { MusicService } from './music.service';
 import { AddMusicByUrlOrIdDto } from './dto/add-music-by-url-or-id.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { Role, Roles } from '../auth/role.constant';
 
 @ApiTags('music')
 @Controller('music')
@@ -15,29 +25,37 @@ export class MusicController {
     return this.musicService.searchByQuery(query);
   }
 
-  /* Add music, and return this music info */
+  /* Add music, and return this music info. only admin can access this api directly */
   /*--------------------------------------------*/
+  @Roles(Role.Admin)
   @Post()
-  async addByUrlOrId(@Body() addMusicByUrlOrIdDto: AddMusicByUrlOrIdDto) {
-    return this.musicService.addByUrlOrId(addMusicByUrlOrIdDto);
+  async addByUrlOrId(
+    @Body() addMusicByUrlOrIdDto: AddMusicByUrlOrIdDto,
+    @Request() req,
+  ) {
+    const { id: musicId, url } = addMusicByUrlOrIdDto;
+    const { user } = req;
+    const { id: userId, channelId } = user;
+    return this.musicService.add({
+      userId,
+      channelId,
+      musicId,
+      url: url,
+    });
   }
 
-  // below is only use for testing
-  // --------------------------------
-  // --------------------------------
-  // --------------------------------
-  // --------------------------------
-  // --------------------------------
   @Get(':id')
   getInfo(@Param('id') id: string) {
     return this.musicService.getInfoById(id);
   }
 
+  @Roles(Role.Admin)
   @Get()
   getAll() {
     return this.musicService.getAll();
   }
 
+  @Roles(Role.Admin)
   @Delete()
   removeAll() {
     return this.musicService.removeAll();

@@ -67,6 +67,7 @@ export class Music {
   createdAt: Date;
 
   // duration
+  @Prop()
   @ApiProperty({
     example: 'PT3M14S',
     format: 'string',
@@ -75,6 +76,7 @@ export class Music {
   duration: string;
 
   // which channel is the music added
+  @Prop()
   @ApiProperty({
     example: '637b38f08e32266d5b5202fa',
     format: 'string',
@@ -83,6 +85,7 @@ export class Music {
   channelId: string;
 
   // Who added this music
+  @Prop()
   @ApiProperty({
     example: '637c85907f2cb79eb4608ea3',
     format: 'string',

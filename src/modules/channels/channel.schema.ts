@@ -45,6 +45,15 @@ export class Channel {
     format: 'string',
   })
   thumbnail: string;
+
+  // the channel manager id
+  @Prop()
+  @ApiProperty({
+    example: '637b8929b8cb2d3eff5273e0',
+    format: 'string',
+    required: true,
+  })
+  managerId: string;
 }
 
 export const ChannelSchema = SchemaFactory.createForClass(Channel);

@@ -1,4 +1,5 @@
 import { WebSocket } from 'ws';
+import { MusicData } from '../music/music.type';
 
 export interface WebsocketWithId extends WebSocket {
   /** 客戶端隨機產生的隨機id */
@@ -15,3 +16,5 @@ export interface JoinChannelEventData {
 export interface AddMusicEventData {
   musicId: string;
 }
+
+export type UpdatePlayListEventData = MusicData[];

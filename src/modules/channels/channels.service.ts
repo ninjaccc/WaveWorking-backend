@@ -21,12 +21,13 @@ export class ChannelsService {
   ) {}
 
   async add(addChannelDto: AddChannelDto) {
-    const { name, thumbnail, password } = addChannelDto;
+    const { name, thumbnail, password, managerId } = addChannelDto;
     const correctPassword = password ? await bcrypt.hash(password, 12) : '';
     const newChannel = await this.channelModel.create({
       name,
       createdAt: Date.now(),
       password: correctPassword,
+      managerId,
       thumbnail:
         thumbnail || 'https://cdn-icons-png.flaticon.com/128/4185/4185501.png',
     });
