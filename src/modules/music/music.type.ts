@@ -7,7 +7,7 @@ export interface MusicData {
 }
 
 export interface MusicDataDetail extends MusicData {
-  likes: string;
+  likes: string[];
   createdAt: string;
   userId: string;
   channelId: string;

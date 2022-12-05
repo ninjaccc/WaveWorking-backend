@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid';
 import { Injectable, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -27,12 +28,19 @@ interface DecodeData {
   exp: number;
 }
 
+interface MusicDataDetailWithSerialId extends MusicDataDetail {
+  serialId: string;
+}
+
 @WebSocketGateway()
 @Injectable()
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server<WebsocketWithId>;
+  /** 當前播放清單列表 */
   currentPlayList: MusicDataDetail[] = [];
+  /** dj待審核插播音樂id列表 */
+  toBeAuditedList: MusicDataDetailWithSerialId[] = [];
 
   constructor(
     private jwtService: JwtService,
@@ -94,11 +102,27 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
   }
 
-  /** dj審核准許插播至歌單 */
+  /** 使用者申請插播至歌單 */
   @UseGuards(WsAuthGuard)
-  @SubscribeMessage('')
-  insertMusic(client: WebsocketWithId, data: AddMusicEventData) {
-    const id = data.musicId;
+  @SubscribeMessage('apply-to-insert-music')
+  async applyToInsertMusic(client: WebsocketWithId, data: AddMusicEventData) {
+    const { userId, channelId } = client;
+    const musicData = await this.musicService.getInfoById(data.musicId);
+
+    const musicDataWithDetail: MusicDataDetailWithSerialId = {
+      // 增加流水號來識別，因為musicId有可能重複
+      serialId: uuidv4(),
+      ...musicData,
+      userId,
+      likes: [],
+      channelId,
+      createdAt: Date.now().toString(),
+      onTime: null,
+      _id: 'to be defined after audit',
+      __v: 0,
+    };
+
+    this.toBeAuditedList.push(musicDataWithDetail);
 
     const currentDj = Array.from(this.server.clients).find(
       (item) => (item.roleId as unknown as Role) === Role.Manager,
@@ -106,11 +130,28 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (currentDj) {
       currentDj.send(
         JSON.stringify({
-          event: 'insert-music',
-          data: id,
+          event: 'update-audited-list',
+          data: this.toBeAuditedList.map((item) => {
+            const { name, author, createdAt, serialId, thumbnail, duration } =
+              item;
+            return {
+              name,
+              author,
+              createdAt,
+              serialId,
+              thumbnail,
+              duration,
+            };
+          }),
         }),
       );
     }
+  }
+
+  @UseGuards(WsAuthGuard)
+  @SubscribeMessage('insert-music')
+  async insertMusic(client: WebsocketWithId, data: AddMusicEventData) {
+    console.log('for dj');
   }
 
   sendAll(data: any) {
