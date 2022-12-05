@@ -70,6 +70,12 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         JSON.stringify(`使用者${client.userId}已經進入${client.channelId}頻道`),
       );
     });
+
+    this.sendOnAChannel(
+      client.channelId,
+      this.currentPlayList,
+      'update-playlist',
+    );
   }
 
   /** 某使用者新增歌曲至當前撥放清單 */
