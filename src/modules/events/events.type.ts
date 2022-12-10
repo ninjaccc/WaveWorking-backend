@@ -17,4 +17,8 @@ export interface AddMusicEventData {
   musicId: string;
 }
 
+export interface InsertMusicEventData {
+  _id: string;
+}
+
 export type UpdatePlayListEventData = MusicData[];
