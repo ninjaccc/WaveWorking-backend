@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import { remove } from 'lodash';
 import { Injectable, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -85,24 +86,29 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       'update-playlist',
     );
 
+    this.sendToUser(
+      client.userId,
+      this.channelCache[channelId].insertPlayList,
+      'update-inserted-list',
+    );
+
     // 如果當前進入頻道的是dj
     if (Number(roleId) === Role.Manager) {
       const toBeAuditedList = this.channelCache[channelId].toBeAuditedList;
-      client.send(
-        JSON.stringify({
-          event: 'update-audited-list',
-          data: toBeAuditedList.map((item) => {
-            const { name, author, createdAt, _id, thumbnail, duration } = item;
-            return {
-              name,
-              author,
-              createdAt,
-              _id,
-              thumbnail,
-              duration,
-            };
-          }),
+      this.sendToUser(
+        client.userId,
+        toBeAuditedList.map((item) => {
+          const { name, author, createdAt, _id, thumbnail, duration } = item;
+          return {
+            name,
+            author,
+            createdAt,
+            _id,
+            thumbnail,
+            duration,
+          };
         }),
+        'update-audited-list',
       );
     }
   }
@@ -164,32 +170,43 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async insertMusic(client: WebsocketWithId, data: InsertMusicEventData) {
     const { toBeAuditedList } = this.channelCache[client.channelId];
 
-    const toBeInsertMusic = toBeAuditedList.find(
-      (item) => item._id === data._id,
-    );
+    // remove those music from toBeAuditedList, and get those to handle after
+    const toBeInsertMusicList = remove(toBeAuditedList, (item) => {
+      return data.find((d) => d._id === item._id);
+    })
+      .filter((item, index) => !data[index].cancel)
+      .map((item) => {
+        const { userId, channelId, musicId } = item;
+        return {
+          userId,
+          channelId,
+          musicId,
+        };
+      });
 
-    // remove this music from toBeAuditedList
-    this.channelCache[client.channelId].toBeAuditedList =
-      toBeAuditedList.filter((item) => item._id !== toBeInsertMusic._id);
-
-    const { userId, channelId, musicId } = toBeInsertMusic;
-    this.insertMusicAndSend(userId, channelId, musicId);
+    // update audited list for dj
     client.send(
       JSON.stringify({
         event: 'update-audited-list',
-        data: this.channelCache[channelId].toBeAuditedList.map((item) => {
-          const { name, author, createdAt, _id, thumbnail, duration } = item;
-          return {
-            name,
-            author,
-            createdAt,
-            _id,
-            thumbnail,
-            duration,
-          };
-        }),
+        data: this.channelCache[client.channelId].toBeAuditedList.map(
+          (item) => {
+            const { name, author, createdAt, _id, thumbnail, duration } = item;
+            return {
+              name,
+              author,
+              createdAt,
+              _id,
+              thumbnail,
+              duration,
+            };
+          },
+        ),
       }),
     );
+
+    if (toBeInsertMusicList.length) {
+      this.insertMusicListAndSend(toBeInsertMusicList);
+    }
   }
 
   initChannelCache(channelId: string) {
@@ -217,14 +234,19 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
   }
 
-  async insertMusicAndSend(userId: string, channelId: string, musicId: string) {
-    const newMusic = await this.musicService.add({
-      userId,
-      channelId,
-      musicId,
-    });
+  async insertMusicListAndSend(
+    items: Array<{
+      userId: string;
+      channelId: string;
+      musicId: string;
+    }>,
+  ) {
+    const channelId = items[0].channelId;
+    const newMusicList = await Promise.all(
+      items.map((item) => this.musicService.add(item)),
+    );
 
-    this.channelCache[channelId].insertPlayList.push(newMusic);
+    this.channelCache[channelId].insertPlayList.push(...newMusicList);
     this.sendOnAChannel(
       channelId,
       this.channelCache[channelId].insertPlayList.map((item) => {
