@@ -19,8 +19,9 @@ import {
   AddMusicEventData,
   InsertMusicEventData,
   JoinChannelEventData,
-  WebsocketWithId,
+  WebsocketWithUserInfo,
 } from './events.type';
+import { UsersService } from '../users/users.service';
 
 interface DecodeData {
   id: string;
@@ -34,7 +35,7 @@ interface DecodeData {
 @Injectable()
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server<WebsocketWithId>;
+  server: Server<WebsocketWithUserInfo>;
 
   /**
    * 頻道資訊緩存
@@ -42,12 +43,13 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   channelCache: Record<string, ChannelData> = {};
 
   constructor(
+    private userService: UsersService,
     private jwtService: JwtService,
     private musicService: MusicService,
   ) {}
 
   /** 有人連進來的時候觸發 */
-  handleConnection(client: WebsocketWithId, request: IncomingMessage) {
+  handleConnection(client: WebsocketWithUserInfo, request: IncomingMessage) {
     // #TODO request.socket.remoteAddress可以取得客戶端ip
     client.send(
       JSON.stringify({
@@ -57,21 +59,19 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
   }
 
-  handleDisconnect(client: WebsocketWithId) {
+  handleDisconnect(client: WebsocketWithUserInfo) {
     // #TODO 判斷用戶關閉網站後，如何知道是該userId離開頻道
     console.log(client.url);
   }
 
   @SubscribeMessage('join-channel')
-  async joinChannel(client: WebsocketWithId, data: JoinChannelEventData) {
+  async joinChannel(client: WebsocketWithUserInfo, data: JoinChannelEventData) {
     const token = data.token;
     const decodeData: DecodeData = await this.jwtService.verifyAsync(token);
 
-    const { id, channelId, roleId } = decodeData;
-    client.userId = id;
-    client.channelId = channelId;
-    client.roleId = roleId;
+    const { channelId } = decodeData;
 
+    await this.saveInfoToWebsocketClient(client, decodeData);
     this.initChannelCache(channelId);
 
     this.server.clients.forEach((single) => {
@@ -93,7 +93,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
 
     // 如果當前進入頻道的是dj
-    if (Number(roleId) === Role.Manager) {
+    if (Number(client.roleId) === Role.Manager) {
       const toBeAuditedList = this.channelCache[channelId].toBeAuditedList;
       this.sendToUser(
         client.userId,
@@ -116,7 +116,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /** 某使用者新增歌曲至當前撥放清單 */
   @UseGuards(WsAuthGuard)
   @SubscribeMessage('add-music')
-  async addMusic(client: WebsocketWithId, data: AddMusicEventData) {
+  async addMusic(client: WebsocketWithUserInfo, data: AddMusicEventData) {
     const { userId, channelId } = client;
 
     this.addMusicAndSend(userId, channelId, data.musicId);
@@ -125,7 +125,10 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /** 使用者申請插播至歌單 */
   @UseGuards(WsAuthGuard)
   @SubscribeMessage('apply-to-insert-music')
-  async applyToInsertMusic(client: WebsocketWithId, data: AddMusicEventData) {
+  async applyToInsertMusic(
+    client: WebsocketWithUserInfo,
+    data: AddMusicEventData,
+  ) {
     const { userId, channelId } = client;
     const musicData = await this.musicService.getInfoById(data.musicId);
 
@@ -167,7 +170,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @Roles(Role.Manager)
   @UseGuards(WsAuthGuard)
   @SubscribeMessage('insert-music')
-  async insertMusic(client: WebsocketWithId, data: InsertMusicEventData) {
+  async insertMusic(client: WebsocketWithUserInfo, data: InsertMusicEventData) {
     const { toBeAuditedList } = this.channelCache[client.channelId];
 
     // remove those music from toBeAuditedList, and get those to handle after
@@ -207,6 +210,20 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (toBeInsertMusicList.length) {
       this.insertMusicListAndSend(toBeInsertMusicList);
     }
+  }
+
+  async saveInfoToWebsocketClient(
+    client: WebsocketWithUserInfo,
+    decodeData: DecodeData,
+  ) {
+    const { id, channelId, roleId } = decodeData;
+    client.channelId = channelId;
+    client.roleId = roleId;
+    client.userId = id;
+
+    const userData = await this.userService.findById(id);
+    client.userName = userData.name;
+    client.userAvatar = userData.avatar;
   }
 
   initChannelCache(channelId: string) {

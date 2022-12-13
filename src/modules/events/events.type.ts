@@ -1,10 +1,12 @@
 import { WebSocket } from 'ws';
 import { MusicData } from '../music/music.type';
 
-export interface WebsocketWithId extends WebSocket {
+export interface WebsocketWithUserInfo extends WebSocket {
   /** 客戶端隨機產生的隨機id */
   secWsKey: string;
   userId: string;
+  userName: string;
+  userAvatar: string;
   channelId: string;
   roleId: string;
 }
