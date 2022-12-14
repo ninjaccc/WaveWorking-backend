@@ -135,7 +135,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const musicDataWithDetail: MusicDataDetail = {
       ...musicData,
       userId,
-      likes: [],
+      likes: new Set(),
       channelId,
       createdAt: Date.now().toString(),
       onTime: null,
@@ -212,6 +212,26 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  @Roles(Role.Manager)
+  @UseGuards(WsAuthGuard)
+  @SubscribeMessage('like')
+  async likeMusic(client: WebsocketWithUserInfo, data: AddMusicEventData) {
+    const channelId = client.channelId;
+    this.fullPlaylist(channelId)
+      .filter((item) => item.musicId === data.musicId)
+      .forEach((item) => item.likes.add(client.userId));
+  }
+
+  @Roles(Role.Manager)
+  @UseGuards(WsAuthGuard)
+  @SubscribeMessage('unlike')
+  async unlikeMusic(client: WebsocketWithUserInfo, data: AddMusicEventData) {
+    const channelId = client.channelId;
+    this.fullPlaylist(channelId)
+      .filter((item) => item.musicId === data.musicId)
+      .forEach((item) => item.likes.delete(client.userId));
+  }
+
   async saveInfoToWebsocketClient(
     client: WebsocketWithUserInfo,
     decodeData: DecodeData,
@@ -285,6 +305,17 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.clients.forEach((single) => {
       single.send(JSON.stringify(data));
     });
+  }
+
+  /** 給前端的完整的播放清單 */
+  fullPlaylist(channelId: string): MusicDataDetail[] {
+    const { currentPlay, toBePlayedList, insertPlayList } =
+      this.channelCache[channelId];
+    return [
+      { ...currentPlay },
+      ...insertPlayList.map((item) => ({ ...item, insert: true })),
+      ...toBePlayedList,
+    ];
   }
 
   sendToUser(userId: string, data: any, event: string) {

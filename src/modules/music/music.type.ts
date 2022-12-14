@@ -7,13 +7,15 @@ export interface MusicData {
 }
 
 export interface MusicDataDetail extends MusicData {
-  likes: string[];
+  likes: Set<string>;
   createdAt: string;
   userId: string;
   channelId: string;
   onTime: null | string;
   _id: string;
   __v: number;
+  /** 是否為插播 */
+  insert?: boolean;
 }
 
 export interface AddMusicParams {
@@ -33,9 +35,5 @@ export interface ChannelData {
   /** 插播歌單列表 */
   insertPlayList: MusicDataDetail[];
   /** 當前撥放的音樂的資訊 */
-  currentPlay?: {
-    isStop: boolean;
-    /** 是否重複撥放? */
-    repeat: boolean;
-  };
+  currentPlay?: MusicDataDetail;
 }
