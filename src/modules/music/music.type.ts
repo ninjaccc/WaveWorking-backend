@@ -7,7 +7,13 @@ export interface MusicData {
 }
 
 export interface MusicDataDetail extends MusicData {
-  likes: Set<string>;
+  /**
+   * e.g.
+   * {
+   *    637c85907f2cb79eb4608ea3: true,
+   * }
+   */
+  likes: Record<string, boolean | null | undefined>;
   createdAt: string;
   userId: string;
   channelId: string;
@@ -16,6 +22,18 @@ export interface MusicDataDetail extends MusicData {
   __v: number;
   /** 是否為插播 */
   insert?: boolean;
+}
+
+export interface MusicDataForClient {
+  likes: Record<string, boolean | null | undefined>;
+  name: string;
+  author: string;
+  createdAt: string;
+  _id: string;
+  musicId: string;
+  thumbnail: string;
+  duration: string;
+  insert: boolean;
 }
 
 export interface AddMusicParams {
