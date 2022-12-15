@@ -178,6 +178,14 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         };
       });
 
+    if (toBeInsertMusicList.length) {
+      /** 需要被插入至最前面的音樂id列表 */
+      const needTopIds = data
+        .filter((item) => item.top)
+        .map((item) => item._id);
+      this.insertMusicListAndSend(toBeInsertMusicList, needTopIds);
+    }
+
     // update audited list for dj
     client.send(
       JSON.stringify({
@@ -197,10 +205,6 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         ),
       }),
     );
-
-    if (toBeInsertMusicList.length) {
-      this.insertMusicListAndSend(toBeInsertMusicList);
-    }
   }
 
   @UseGuards(WsAuthGuard)
@@ -295,6 +299,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       channelId: string;
       musicId: string;
     }>,
+    needTopIds: string[],
   ) {
     const insertIndex = () => {
       if (!this.channelCache[channelId].playList.length) return 0;
@@ -309,13 +314,35 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     };
     const channelId = items[0].channelId;
     const newMusicList = await Promise.all(
-      items.map((item) => this.musicService.add(item)),
+      // 越早插入的會在清單越下面，所以此處要反轉
+      items.reverse().map((item) => this.musicService.add(item)),
     );
+
+    /** 需要被插入至最前面(扣掉當前撥放項目)的列表 */
+    const listNeedToBeInsertedToTop = newMusicList.filter((item) =>
+      needTopIds.includes(item._id),
+    );
+    /** 插入至最後一個插播項目之後的列表 */
+    const listNeedToBeInsertedAfterTheLastInsertedItem = newMusicList.filter(
+      (item) => !needTopIds.includes(item._id),
+    );
+
+    // 如果列表有要求插入至最前面的情況
+    if (listNeedToBeInsertedToTop.length) {
+      this.channelCache[channelId].playList.splice(
+        this.channelCache[channelId].playList.length ? 1 : 0,
+        0,
+        ...listNeedToBeInsertedToTop.map((item) => ({ ...item, insert: true })),
+      );
+    }
 
     this.channelCache[channelId].playList.splice(
       insertIndex(),
       0,
-      ...newMusicList.map((item) => ({ ...item, insert: true })),
+      ...listNeedToBeInsertedAfterTheLastInsertedItem.map((item) => ({
+        ...item,
+        insert: true,
+      })),
     );
 
     this.sendPlaylistOnAChannel(channelId);

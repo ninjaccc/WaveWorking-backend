@@ -26,6 +26,8 @@ export type UpdateCurrentMusicEventData = {
 export type InsertMusicEventData = Array<{
   _id: string;
   cancel: boolean;
+  /** 是否插入至最上方 */
+  top: boolean;
 }>;
 
 export type UpdatePlayListEventData = MusicData[];
