@@ -315,7 +315,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.channelCache[channelId].playList.splice(
       insertIndex(),
       0,
-      ...newMusicList,
+      ...newMusicList.map((item) => ({ ...item, insert: true })),
     );
 
     this.sendPlaylistOnAChannel(channelId);
