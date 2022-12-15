@@ -19,9 +19,9 @@ export interface AddMusicEventData {
   musicId: string;
 }
 
-export interface UpdateCurrentMusicEventData {
+export type UpdateCurrentMusicEventData = {
   _id: string;
-}
+} | null;
 
 export type InsertMusicEventData = Array<{
   _id: string;

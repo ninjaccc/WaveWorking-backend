@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { remove } from 'lodash';
+import { remove, findLastIndex } from 'lodash';
 import { HttpException, Injectable, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -210,20 +210,27 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     data: UpdateCurrentMusicEventData,
   ) {
     const channelId = client.channelId;
-    const [currentMusic] = remove(
-      this.fullPlaylist(channelId),
-      (item) => item._id === data._id,
-    );
 
-    console.log(
-      `當前撥放的音樂為: ${currentMusic?.name}  id為: ${currentMusic?._id}`,
+    // 如果更新的音樂為空，表示目前播放清單上沒有任何歌曲
+    if (!data) {
+      this.channelCache[channelId].playList = [];
+      this.sendPlaylistOnAChannel(channelId);
+      return;
+    }
+
+    // 移除第一項(原本的播放項)
+    this.channelCache[channelId].playList.shift();
+
+    const [currentMusic] = remove(
+      this.channelCache[channelId].playList,
+      (item) => item._id === data._id,
     );
 
     if (!currentMusic) {
       throw new HttpException('cant find this music!!', 404);
     }
 
-    this.channelCache[channelId].currentPlay = { ...currentMusic };
+    this.channelCache[channelId].playList.unshift({ ...currentMusic });
     this.sendPlaylistOnAChannel(channelId);
   }
 
@@ -232,7 +239,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('like')
   async likeMusic(client: WebsocketWithUserInfo, data: AddMusicEventData) {
     const channelId = client.channelId;
-    this.fullPlaylist(channelId)
+    this.channelCache[channelId].playList
       .filter((item) => item.musicId === data.musicId)
       .forEach((item) => (item.likes[client.userId] = true));
   }
@@ -242,7 +249,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('unlike')
   async unlikeMusic(client: WebsocketWithUserInfo, data: AddMusicEventData) {
     const channelId = client.channelId;
-    this.fullPlaylist(channelId)
+    this.channelCache[channelId].playList
       .filter((item) => item.musicId === data.musicId)
       .forEach((item) => (item.likes[client.userId] = false));
   }
@@ -264,9 +271,8 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   initChannelCache(channelId: string) {
     if (!this.channelCache[channelId]) {
       this.channelCache[channelId] = {
-        toBePlayedList: [],
+        playList: [],
         toBeAuditedList: [],
-        insertPlayList: [],
       };
     }
   }
@@ -278,10 +284,11 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       musicId,
     });
 
-    this.channelCache[channelId].toBePlayedList.push(newMusic);
+    this.channelCache[channelId].playList.push(newMusic);
     this.sendPlaylistOnAChannel(channelId);
   }
 
+  // #FIX 邏輯需要再調整
   async insertMusicListAndSend(
     items: Array<{
       userId: string;
@@ -289,12 +296,28 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       musicId: string;
     }>,
   ) {
+    const insertIndex = () => {
+      if (!this.channelCache[channelId].playList.length) return 0;
+
+      const index = findLastIndex(
+        this.channelCache[channelId].playList,
+        (item) => item.insert,
+      );
+
+      // 找不到有插播的歌，就插序號0
+      return index === -1 ? 1 : index + 1;
+    };
     const channelId = items[0].channelId;
     const newMusicList = await Promise.all(
       items.map((item) => this.musicService.add(item)),
     );
 
-    this.channelCache[channelId].insertPlayList.push(...newMusicList);
+    this.channelCache[channelId].playList.splice(
+      insertIndex(),
+      0,
+      ...newMusicList,
+    );
+
     this.sendPlaylistOnAChannel(channelId);
   }
 
@@ -302,17 +325,6 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.clients.forEach((single) => {
       single.send(JSON.stringify(data));
     });
-  }
-
-  /** 給前端的完整的播放清單 */
-  fullPlaylist(channelId: string) {
-    const { currentPlay, toBePlayedList, insertPlayList } =
-      this.channelCache[channelId];
-    return [
-      { ...currentPlay },
-      ...insertPlayList.map((item) => ({ ...item, insert: true })),
-      ...toBePlayedList,
-    ];
   }
 
   sendToUser(userId: string, data: any, event: string) {
@@ -325,7 +337,9 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   sendPlaylistToUser(userId: string, channelId: string) {
     this.sendToUser(
       userId,
-      this.fullPlaylist(channelId).map((item) => this.toClientFormat(item)),
+      this.channelCache[channelId].playList.map((item) =>
+        this.toClientFormat(item),
+      ),
       'update-playlist',
     );
   }
@@ -333,7 +347,9 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   sendPlaylistOnAChannel(channelId: string) {
     this.sendOnAChannel(
       channelId,
-      this.fullPlaylist(channelId).map((item) => this.toClientFormat(item)),
+      this.channelCache[channelId].playList.map((item) =>
+        this.toClientFormat(item),
+      ),
       'update-playlist',
     );
   }

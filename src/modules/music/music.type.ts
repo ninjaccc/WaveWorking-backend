@@ -46,12 +46,8 @@ export interface AddMusicParams {
 
 /** 當前頻道資訊佔存 */
 export interface ChannelData {
-  /** 之後需要被撥放的清單列表 */
-  toBePlayedList: MusicDataDetail[];
+  /** 當前撥放清單列表 */
+  playList: MusicDataDetail[];
   /** dj待審核插播音樂id列表 */
   toBeAuditedList: MusicDataDetail[];
-  /** 插播歌單列表 */
-  insertPlayList: MusicDataDetail[];
-  /** 當前撥放的音樂的資訊 */
-  currentPlay?: MusicDataDetail;
 }

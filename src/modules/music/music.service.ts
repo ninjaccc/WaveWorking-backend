@@ -81,7 +81,7 @@ export class MusicService {
 
     const { name, author, thumbnail, duration } = info;
 
-    return (
+    const res = (
       await this.musicModel.create({
         name,
         musicId,
@@ -95,6 +95,12 @@ export class MusicService {
         onTime: onTime ? new Date(onTime) : null,
       })
     ).toObject() as unknown as MusicDataDetail;
+
+    return {
+      ...res,
+      // #NOTICE create出來的_id是ObjectId類型
+      _id: res._id.toString(),
+    } as unknown as MusicDataDetail;
   }
 
   transformVideoResponse(item: youtube_v3.Schema$Video): MusicData {
