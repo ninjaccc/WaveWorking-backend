@@ -19,6 +19,10 @@ export interface AddMusicEventData {
   musicId: string;
 }
 
+export interface DeleteMusicEventData {
+  _id: string;
+}
+
 export type UpdateCurrentMusicEventData = {
   _id: string;
 } | null;

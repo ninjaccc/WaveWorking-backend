@@ -17,6 +17,7 @@ import { MusicService } from '../music/music.service';
 import { ChannelData, MusicDataDetail } from '../music/music.type';
 import {
   AddMusicEventData,
+  DeleteMusicEventData,
   InsertMusicEventData,
   JoinChannelEventData,
   WebsocketWithUserInfo,
@@ -111,6 +112,13 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { userId, channelId } = client;
 
     this.addMusicAndSend(userId, channelId, data.musicId);
+  }
+
+  @Roles(Role.Manager)
+  @UseGuards(WsAuthGuard)
+  @SubscribeMessage('delete-music')
+  deleteMusic(client: WebsocketWithUserInfo, data: DeleteMusicEventData) {
+    this.deleteMusicAndSend(data._id, client.channelId);
   }
 
   /** 使用者申請插播至歌單 */
@@ -289,6 +297,14 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
 
     this.channelCache[channelId].playList.push(newMusic);
+    this.sendPlaylistOnAChannel(channelId);
+  }
+
+  async deleteMusicAndSend(id: string, channelId: string) {
+    await this.musicService.findByIdAndDelete(id);
+
+    remove(this.channelCache[channelId].playList, (item) => item._id === id);
+
     this.sendPlaylistOnAChannel(channelId);
   }
 
