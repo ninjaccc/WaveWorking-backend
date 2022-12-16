@@ -177,21 +177,26 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return data.find((d) => d._id === item._id);
     })
       .filter((item, index) => !data[index].cancel)
+      // 越早插入的會在清單越下面，所以此處要反轉
+      .reverse()
       .map((item) => {
-        const { userId, channelId, musicId } = item;
+        const { userId, channelId, musicId, _id } = item;
         return {
           userId,
           channelId,
           musicId,
+          _id,
         };
       });
 
     if (toBeInsertMusicList.length) {
       /** 需要被插入至最前面的音樂id列表 */
-      const needTopIds = data
+      const needTopIndex = data
         .filter((item) => item.top)
-        .map((item) => item._id);
-      this.insertMusicListAndSend(toBeInsertMusicList, needTopIds);
+        .map((item) =>
+          toBeInsertMusicList.findIndex((i) => i._id === item._id),
+        );
+      this.insertMusicListAndSend(toBeInsertMusicList, needTopIndex);
     }
 
     // update audited list for dj
@@ -319,7 +324,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       channelId: string;
       musicId: string;
     }>,
-    needTopIds: string[],
+    needTopIndex: number[],
   ) {
     const insertIndex = () => {
       if (!this.channelCache[channelId].playList.length) return 0;
@@ -334,17 +339,17 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     };
     const channelId = items[0].channelId;
     const newMusicList = await Promise.all(
-      // 越早插入的會在清單越下面，所以此處要反轉
-      items.reverse().map((item) => this.musicService.add(item)),
+      items.map((item) => this.musicService.add(item)),
     );
 
     /** 需要被插入至最前面(扣掉當前撥放項目)的列表 */
-    const listNeedToBeInsertedToTop = newMusicList.filter((item) =>
-      needTopIds.includes(item._id),
+    const listNeedToBeInsertedToTop = newMusicList.filter((item, index) =>
+      needTopIndex.includes(index),
     );
+
     /** 插入至最後一個插播項目之後的列表 */
     const listNeedToBeInsertedAfterTheLastInsertedItem = newMusicList.filter(
-      (item) => !needTopIds.includes(item._id),
+      (item, index) => !needTopIndex.includes(index),
     );
 
     // 如果列表有要求插入至最前面的情況
