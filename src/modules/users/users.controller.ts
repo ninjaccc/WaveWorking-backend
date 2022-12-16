@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -34,6 +35,17 @@ export class UsersController {
   @ApiBearerAuth()
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
+  }
+
+  @Get('/me')
+  @ApiResponse({
+    status: 200,
+    type: User,
+    isArray: true,
+  })
+  getMe(@Request() req) {
+    const userId = req.user.id;
+    return this.usersService.findById(userId);
   }
 
   /* Get All Users */

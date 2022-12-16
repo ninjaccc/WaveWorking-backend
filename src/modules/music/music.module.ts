@@ -17,5 +17,6 @@ import { YoutubeModule } from '../youtube/youtube.module';
   ],
   controllers: [MusicController],
   providers: [MusicService],
+  exports: [MusicService],
 })
 export class MusicModule {}

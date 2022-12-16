@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { WebsocketWithId } from 'src/modules/events/events.type';
+import { WebsocketWithUserInfo } from 'src/modules/events/events.type';
 import { Role, ROLES_KEY } from '../role.constant';
 
 @Injectable()
@@ -8,7 +8,7 @@ export class WsAuthGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean | Promise<boolean> {
-    const client = context.switchToWs().getClient() as WebsocketWithId;
+    const client = context.switchToWs().getClient() as WebsocketWithUserInfo;
     if (!client.userId) {
       client.send(
         JSON.stringify({

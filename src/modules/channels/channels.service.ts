@@ -1,4 +1,5 @@
 import * as bcrypt from 'bcrypt';
+import { v4 as uuidv4 } from 'uuid';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -21,12 +22,13 @@ export class ChannelsService {
   ) {}
 
   async add(addChannelDto: AddChannelDto) {
-    const { name, thumbnail, password } = addChannelDto;
+    const { name, thumbnail, password, managerId } = addChannelDto;
     const correctPassword = password ? await bcrypt.hash(password, 12) : '';
     const newChannel = await this.channelModel.create({
       name,
       createdAt: Date.now(),
       password: correctPassword,
+      managerId,
       thumbnail:
         thumbnail || 'https://cdn-icons-png.flaticon.com/128/4185/4185501.png',
     });
@@ -38,6 +40,11 @@ export class ChannelsService {
     const { name, channelId, channelPassword } = joinChannelAsGuestDto;
 
     try {
+      const existUser = await this.userService.findOne({ name });
+      if (existUser) {
+        throw new Error('user name is exist, please change one!');
+      }
+
       const currentChannel = await this.getChannelById(channelId);
       if (!currentChannel) {
         throw new Error('can not find this channel!');
@@ -55,7 +62,7 @@ export class ChannelsService {
 
       const guestUser = await this.userService.create({
         name,
-        email: 'fake@testmail.com',
+        email: uuidv4(),
         password: 'unknownPassword',
         gender: 1,
         roleId: Role.Guest,
