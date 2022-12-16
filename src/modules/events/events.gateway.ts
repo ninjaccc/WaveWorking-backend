@@ -22,6 +22,7 @@ import {
   JoinChannelEventData,
   WebsocketWithUserInfo,
   UpdateCurrentMusicEventData,
+  UpdateCurrentTimeEventData,
 } from './events.type';
 import { UsersService } from '../users/users.service';
 
@@ -249,6 +250,15 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     this.channelCache[channelId].playList.unshift({ ...currentMusic });
     this.sendPlaylistOnAChannel(channelId);
+  }
+
+  @UseGuards(WsAuthGuard)
+  @SubscribeMessage('update-current-time')
+  async updateCurrentTime(
+    client: WebsocketWithUserInfo,
+    data: UpdateCurrentTimeEventData,
+  ) {
+    this.sendOnAChannel(client.channelId, data, 'update-current-time');
   }
 
   @UseGuards(WsAuthGuard)

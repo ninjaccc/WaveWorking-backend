@@ -27,6 +27,10 @@ export type UpdateCurrentMusicEventData = {
   _id: string;
 } | null;
 
+export interface UpdateCurrentTimeEventData {
+  time: string;
+}
+
 export type InsertMusicEventData = Array<{
   _id: string;
   cancel: boolean;
