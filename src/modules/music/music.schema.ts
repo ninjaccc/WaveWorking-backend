@@ -54,8 +54,8 @@ export class Music {
   thumbnail: string;
 
   // likes
-  @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }] })
-  likes: mongoose.Schema.Types.ObjectId[];
+  @Prop({ type: Map, of: String })
+  likes: Record<string, string>;
 
   // createdAt
   @Prop()

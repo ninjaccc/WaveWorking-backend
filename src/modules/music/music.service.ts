@@ -90,7 +90,7 @@ export class MusicService {
         duration,
         userId,
         channelId,
-        likes: [],
+        likes: {},
         createdAt: Date.now(),
         onTime: onTime ? new Date(onTime) : null,
       })
@@ -113,6 +113,10 @@ export class MusicService {
       thumbnail: thumbnails.medium.url,
       duration,
     };
+  }
+
+  findByIdAndDelete(id: string) {
+    return this.musicModel.findByIdAndDelete(id);
   }
 
   // only for testing

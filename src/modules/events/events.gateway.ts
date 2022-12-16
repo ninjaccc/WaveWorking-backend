@@ -246,24 +246,16 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.sendPlaylistOnAChannel(channelId);
   }
 
-  @Roles(Role.Manager)
   @UseGuards(WsAuthGuard)
   @SubscribeMessage('like')
   async likeMusic(client: WebsocketWithUserInfo, data: AddMusicEventData) {
-    const channelId = client.channelId;
-    this.channelCache[channelId].playList
-      .filter((item) => item.musicId === data.musicId)
-      .forEach((item) => (item.likes[client.userId] = true));
+    this.likeMusicAndSend(client.userId, data.musicId, true, client.channelId);
   }
 
-  @Roles(Role.Manager)
   @UseGuards(WsAuthGuard)
   @SubscribeMessage('unlike')
   async unlikeMusic(client: WebsocketWithUserInfo, data: AddMusicEventData) {
-    const channelId = client.channelId;
-    this.channelCache[channelId].playList
-      .filter((item) => item.musicId === data.musicId)
-      .forEach((item) => (item.likes[client.userId] = false));
+    this.likeMusicAndSend(client.userId, data.musicId, false, client.channelId);
   }
 
   async saveInfoToWebsocketClient(
@@ -305,6 +297,18 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     remove(this.channelCache[channelId].playList, (item) => item._id === id);
 
+    this.sendPlaylistOnAChannel(channelId);
+  }
+
+  async likeMusicAndSend(
+    userId: string,
+    musicId: string,
+    like: boolean,
+    channelId: string,
+  ) {
+    this.channelCache[channelId].playList
+      .filter((item) => item.musicId === musicId)
+      .forEach((item) => (item.likes[userId] = like));
     this.sendPlaylistOnAChannel(channelId);
   }
 
