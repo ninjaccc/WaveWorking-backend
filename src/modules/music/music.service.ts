@@ -5,7 +5,7 @@ import { Music, MusicDocument } from './music.schema';
 import { Model } from 'mongoose';
 import { YoutubeService } from '../youtube/youtube.service';
 import { youtube_v3 } from 'googleapis';
-import { AddMusicParams, MusicData, MusicDataDetail } from './music.type';
+import { AddMusicParams, MusicData, PlayData } from './music.type';
 
 @Injectable()
 export class MusicService {
@@ -94,13 +94,13 @@ export class MusicService {
         createdAt: Date.now(),
         onTime: onTime ? new Date(onTime) : null,
       })
-    ).toObject() as unknown as MusicDataDetail;
+    ).toObject() as unknown as PlayData;
 
     return {
       ...res,
       // #NOTICE create出來的_id是ObjectId類型
       _id: res._id.toString(),
-    } as unknown as MusicDataDetail;
+    } as unknown as PlayData;
   }
 
   transformVideoResponse(item: youtube_v3.Schema$Video): MusicData {

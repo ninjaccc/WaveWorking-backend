@@ -6,7 +6,8 @@ export interface MusicData {
   duration: string;
 }
 
-export interface MusicDataDetail extends MusicData {
+/** 播放項目資訊 */
+export interface PlayData extends MusicData {
   /**
    * e.g.
    * {
@@ -19,21 +20,8 @@ export interface MusicDataDetail extends MusicData {
   channelId: string;
   onTime: null | string;
   _id: string;
-  __v: number;
   /** 是否為插播 */
   insert?: boolean;
-}
-
-export interface MusicDataForClient {
-  likes: Record<string, boolean | null | undefined>;
-  name: string;
-  author: string;
-  createdAt: string;
-  _id: string;
-  musicId: string;
-  thumbnail: string;
-  duration: string;
-  insert: boolean;
 }
 
 export interface AddMusicParams {
@@ -47,7 +35,7 @@ export interface AddMusicParams {
 /** 當前頻道資訊佔存 */
 export interface ChannelData {
   /** 當前撥放清單列表 */
-  playList: MusicDataDetail[];
+  playList: PlayData[];
   /** dj待審核插播音樂id列表 */
-  toBeAuditedList: MusicDataDetail[];
+  toBeAuditedList: PlayData[];
 }

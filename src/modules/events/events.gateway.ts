@@ -14,7 +14,7 @@ import { Server } from 'ws';
 import { WsAuthGuard } from '../auth/guards/ws-auth.guard';
 import { Role, Roles } from '../auth/role.constant';
 import { MusicService } from '../music/music.service';
-import { ChannelData, MusicDataDetail } from '../music/music.type';
+import { ChannelData, PlayData } from '../music/music.type';
 import {
   AddMusicEventData,
   DeleteMusicEventData,
@@ -111,15 +111,26 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('add-music')
   async addMusic(client: WebsocketWithUserInfo, data: AddMusicEventData) {
     const { userId, channelId } = client;
+    const playData = await this.generatePlayData(
+      data.musicId,
+      userId,
+      channelId,
+    );
 
-    this.addMusicAndSend(userId, channelId, data.musicId);
+    this.channelCache[channelId].playList.push(playData);
+    this.sendPlaylistOnAChannel(channelId);
   }
 
   @Roles(Role.Manager)
   @UseGuards(WsAuthGuard)
   @SubscribeMessage('delete-music')
-  deleteMusic(client: WebsocketWithUserInfo, data: DeleteMusicEventData) {
-    this.deleteMusicAndSend(data._id, client.channelId);
+  async deleteMusic(client: WebsocketWithUserInfo, data: DeleteMusicEventData) {
+    remove(
+      this.channelCache[client.channelId].playList,
+      (item) => item._id === data._id,
+    );
+
+    this.sendPlaylistOnAChannel(client.channelId);
   }
 
   /** 使用者申請插播至歌單 */
@@ -130,21 +141,13 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     data: AddMusicEventData,
   ) {
     const { userId, channelId } = client;
-    const musicData = await this.musicService.getInfoById(data.musicId);
-
-    const musicDataWithDetail: MusicDataDetail = {
-      ...musicData,
+    const playData = await this.generatePlayData(
+      data.musicId,
       userId,
-      likes: {},
       channelId,
-      createdAt: Date.now().toString(),
-      onTime: null,
-      // 暫時的流水號id，之後真正審核通過被加入music collection再依靠mongoose創建的新id取代
-      _id: uuidv4(),
-      __v: 0,
-    };
+    );
 
-    this.channelCache[channelId].toBeAuditedList.push(musicDataWithDetail);
+    this.channelCache[channelId].toBeAuditedList.push(playData);
 
     const djClient = this.findDjClientInChannel(channelId);
     if (!djClient) return;
@@ -273,6 +276,21 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.likeMusicAndSend(client.userId, data.musicId, false, client.channelId);
   }
 
+  async generatePlayData(musicId: string, userId: string, channelId: string) {
+    const musicData = await this.musicService.getInfoById(musicId);
+
+    return {
+      ...musicData,
+      userId,
+      likes: {},
+      channelId,
+      createdAt: Date.now().toString(),
+      onTime: null,
+      // 暫時的流水號id，之後真正審核通過被加入music collection再依靠mongoose創建的新id取代
+      _id: uuidv4(),
+    } as PlayData;
+  }
+
   async saveInfoToWebsocketClient(
     client: WebsocketWithUserInfo,
     decodeData: DecodeData,
@@ -294,25 +312,6 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         toBeAuditedList: [],
       };
     }
-  }
-
-  async addMusicAndSend(userId: string, channelId: string, musicId: string) {
-    const newMusic = await this.musicService.add({
-      userId,
-      channelId,
-      musicId,
-    });
-
-    this.channelCache[channelId].playList.push(newMusic);
-    this.sendPlaylistOnAChannel(channelId);
-  }
-
-  async deleteMusicAndSend(id: string, channelId: string) {
-    await this.musicService.findByIdAndDelete(id);
-
-    remove(this.channelCache[channelId].playList, (item) => item._id === id);
-
-    this.sendPlaylistOnAChannel(channelId);
   }
 
   async likeMusicAndSend(
@@ -348,17 +347,20 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return index === -1 ? 1 : index + 1;
     };
     const channelId = items[0].channelId;
-    const newMusicList = await Promise.all(
-      items.map((item) => this.musicService.add(item)),
+    const playDataList = await Promise.all(
+      items.map((item) => {
+        const { musicId, userId, channelId } = item;
+        return this.generatePlayData(musicId, userId, channelId);
+      }),
     );
 
     /** 需要被插入至最前面(扣掉當前撥放項目)的列表 */
-    const listNeedToBeInsertedToTop = newMusicList.filter((item, index) =>
+    const listNeedToBeInsertedToTop = playDataList.filter((item, index) =>
       needTopIndex.includes(index),
     );
 
     /** 插入至最後一個插播項目之後的列表 */
-    const listNeedToBeInsertedAfterTheLastInsertedItem = newMusicList.filter(
+    const listNeedToBeInsertedAfterTheLastInsertedItem = playDataList.filter(
       (item, index) => !needTopIndex.includes(index),
     );
 
@@ -448,7 +450,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /** 移除客戶端不需要的資料，並回傳 */
-  toClientFormat(data: MusicDataDetail) {
+  toClientFormat(data: PlayData) {
     const {
       name,
       author,
