@@ -232,6 +232,13 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const channelId = client.channelId;
 
+    // 存入音樂歷史紀錄
+    const currentPlay = this.channelCache[channelId].playList?.[0];
+    if (currentPlay) {
+      const { musicId, onTime, userId, channelId } = currentPlay;
+      this.musicService.add({ musicId, onTime, userId, channelId });
+    }
+
     // 如果更新的音樂為空，表示目前播放清單上沒有任何歌曲
     if (!data) {
       this.channelCache[channelId].playList = [];
