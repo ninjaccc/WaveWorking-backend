@@ -23,8 +23,13 @@ import {
   WebsocketWithUserInfo,
   UpdateCurrentMusicEventData,
   UpdateCurrentTimeEventData,
+  SetPageSizeOfHistoryEventDate,
+  SetPageIndexOfHistoryEventDate,
+  AddMusicFromHistoryEventData,
+  LikeMusicFromHistoryEventData,
 } from './events.type';
 import { UsersService } from '../users/users.service';
+import { CronService } from '../cron/cron.service';
 
 interface DecodeData {
   id: string;
@@ -33,6 +38,8 @@ interface DecodeData {
   iat: number;
   exp: number;
 }
+
+const DEFAULT_PAGE_SIZE_OF_HISTORY = 10;
 
 @WebSocketGateway()
 @Injectable()
@@ -48,6 +55,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private userService: UsersService,
     private jwtService: JwtService,
+    private cronService: CronService,
     private musicService: MusicService,
   ) {}
 
@@ -84,6 +92,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
 
     this.sendPlaylistToUser(client.userId, client.channelId);
+    this.sendHistoryToUser(client.userId, client.channelId, 1);
 
     // 如果當前進入頻道的是dj
     if (Number(client.roleId) === Role.Manager) {
@@ -236,7 +245,10 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const currentPlay = this.channelCache[channelId].playList?.[0];
     if (currentPlay) {
       const { musicId, onTime, userId, channelId } = currentPlay;
-      this.musicService.add({ musicId, onTime, userId, channelId });
+      await this.musicService.add({ musicId, onTime, userId, channelId });
+      // 更新歷史紀錄
+      const endIndex = await this.getLastPageIndexOfHistory(channelId);
+      this.sendHistoryOnAChannel(channelId, endIndex);
     }
 
     // 如果更新的音樂為空，表示目前播放清單上沒有任何歌曲
@@ -283,6 +295,64 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.likeMusicAndSend(client.userId, data.musicId, false, client.channelId);
   }
 
+  @Roles(Role.Manager)
+  @UseGuards(WsAuthGuard)
+  @SubscribeMessage('set-page-size-of-history')
+  async setPageSizeOfHistory(
+    client: WebsocketWithUserInfo,
+    data: SetPageSizeOfHistoryEventDate,
+  ) {
+    const { channelId } = client;
+    this.channelCache[channelId].pageSizeOfHistory = data.pageSize;
+    // 若DJ設置新的pageSize，則所有人接收到新的第一頁列表
+    this.sendHistoryOnAChannel(channelId, 1);
+  }
+
+  /** 設置當前client歷史紀錄位於第幾頁 */
+  @UseGuards(WsAuthGuard)
+  @SubscribeMessage('set-page-index-of-history')
+  async setPageIndexOfHistory(
+    client: WebsocketWithUserInfo,
+    data: SetPageIndexOfHistoryEventDate,
+  ) {
+    const { channelId, userId } = client;
+    client.pageIndexOfHistory = data.pageIndex;
+    this.sendHistoryToUser(userId, channelId, data.pageIndex);
+  }
+
+  @UseGuards(WsAuthGuard)
+  @SubscribeMessage('add-music-from-history')
+  async AddMusicFromHistory(
+    client: WebsocketWithUserInfo,
+    data: AddMusicFromHistoryEventData,
+  ) {
+    // 加入至playlist
+    await this.addMusic(client, { musicId: data.musicId });
+
+    // 增加下一次可重新被添加至歌單的時間
+    const date = new Date();
+    // #TODO 之後會改為增加24小時時間
+    date.setMinutes(date.getMinutes() + 1);
+    await this.musicService.findByIdAndUpdate(data._id, {
+      canBeReAddedTime: date,
+    });
+
+    // 更新此頁歷史紀錄至該頻道
+    this.sendHistoryOnAChannel(client.channelId, client.pageIndexOfHistory);
+
+    // 加入排程，隔1分鐘後觸發(1分鐘為測試，之後會改成24小時後)
+    this.cronService.addSpecificTimeJob(
+      `can be added again until ${date.toString()} `,
+      date,
+      async () => {
+        await this.musicService.findByIdAndUpdate(data._id, {
+          canBeReAddedTime: null,
+        });
+        this.sendHistoryOnAChannel(client.channelId, client.pageIndexOfHistory);
+      },
+    );
+  }
+
   async generatePlayData(musicId: string, userId: string, channelId: string) {
     const musicData = await this.musicService.getInfoById(musicId);
 
@@ -317,6 +387,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.channelCache[channelId] = {
         playList: [],
         toBeAuditedList: [],
+        pageSizeOfHistory: DEFAULT_PAGE_SIZE_OF_HISTORY,
       };
     }
   }
@@ -415,6 +486,38 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
   }
 
+  async sendHistoryToUser(
+    userId: string,
+    channelId: string,
+    pageIndex: number,
+  ) {
+    const pageSize = this.channelCache[channelId].pageSizeOfHistory;
+    const [musicTotalCount, musicList] = await Promise.all([
+      this.musicService.getTotalCount(),
+      this.musicService.getByQuery(
+        {
+          channelId,
+        },
+        {
+          skip: (Number(pageIndex) - 1) * Number(pageSize),
+          limit: Number(pageSize),
+          sort: { createdAt: 'asc' },
+        },
+      ),
+    ]);
+
+    this.sendToUser(
+      userId,
+      {
+        pageIndex,
+        totalCount: musicTotalCount,
+        pageCount: Math.ceil(musicTotalCount / pageSize),
+        list: musicList,
+      },
+      'update-history',
+    );
+  }
+
   sendPlaylistOnAChannel(channelId: string) {
     this.sendOnAChannel(
       channelId,
@@ -423,6 +526,44 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       ),
       'update-playlist',
     );
+  }
+
+  async sendHistoryOnAChannel(channelId: string, pageIndex: number) {
+    const pageSize = this.channelCache[channelId].pageSizeOfHistory;
+    const [musicTotalCount, musicList] = await Promise.all([
+      this.musicService.getTotalCount(),
+      this.musicService.getByQuery(
+        {
+          channelId,
+        },
+        {
+          skip: (Number(pageIndex) - 1) * Number(pageSize),
+          limit: Number(pageSize),
+          sort: { createdAt: 'asc' },
+        },
+      ),
+    ]);
+    this.sendOnAChannel(
+      channelId,
+      {
+        pageIndex,
+        totalCount: musicTotalCount,
+        pageCount: Math.ceil(musicTotalCount / pageSize),
+        list: musicList,
+      },
+      'update-history',
+    );
+  }
+
+  /**
+   * 取得歷史紀錄最後一頁位於第幾頁。
+   * 注意 : pageIndex最小值為1
+   */
+  async getLastPageIndexOfHistory(channelId: string) {
+    const pageSize = this.channelCache[channelId].pageSizeOfHistory;
+    const total = await this.musicService.getTotalCount();
+
+    return Math.floor(total / pageSize) + 1;
   }
 
   sendOnAChannel(channelId: string, data: any, event: string) {

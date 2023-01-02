@@ -4,12 +4,14 @@ import { JwtModule } from '@nestjs/jwt';
 import { WsAuthGuard } from '../auth/guards/ws-auth.guard';
 import { MusicModule } from '../music/music.module';
 import { UsersModule } from '../users/users.module';
+import { CronModule } from '../cron/cron.module';
 import { EventsGateway } from './events.gateway';
 
 @Module({
   imports: [
     MusicModule,
     UsersModule,
+    CronModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
