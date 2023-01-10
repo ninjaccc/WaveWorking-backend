@@ -41,7 +41,7 @@ interface DecodeData {
 
 const DEFAULT_PAGE_SIZE_OF_HISTORY = 10;
 
-@WebSocketGateway()
+@WebSocketGateway(9453, { transports: ['websocket'] })
 @Injectable()
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
