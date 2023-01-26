@@ -114,6 +114,16 @@ export class ChannelsService {
     }
   }
 
+  async getManagerId(channelId: string) {
+    try {
+      const channel = await this.channelModel.findById(channelId);
+      console.log(channel);
+      return channel.managerId;
+    } catch (error) {
+      throw new NotFoundException(error.message);
+    }
+  }
+
   getChannelById(channelId: string) {
     return this.channelModel.findById(channelId);
   }

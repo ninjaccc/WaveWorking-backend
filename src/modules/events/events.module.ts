@@ -5,10 +5,12 @@ import { WsAuthGuard } from '../auth/guards/ws-auth.guard';
 import { MusicModule } from '../music/music.module';
 import { UsersModule } from '../users/users.module';
 import { CronModule } from '../cron/cron.module';
-import { EventsGateway } from './events.gateway';
+import { EventsGateway } from './gateway/socketio.gateway';
+import { ChannelsModule } from '../channels/channels.module';
 
 @Module({
   imports: [
+    ChannelsModule,
     MusicModule,
     UsersModule,
     CronModule,

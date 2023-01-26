@@ -24,5 +24,6 @@ import { AuthModule } from '../auth/auth.module';
   ],
   controllers: [ChannelsController],
   providers: [ChannelsService],
+  exports: [ChannelsService],
 })
 export class ChannelsModule {}
