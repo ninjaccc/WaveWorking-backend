@@ -19,7 +19,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  console.log(process.env.PORT);
-  await app.listen(process.env.PORT || 3000, '0.0.0.0');
+  // #NOTICE 好像在第二個參數加上0.0.0.0，連線就會一直斷開並且持續重連
+  await app.listen(3000);
 }
 bootstrap();
