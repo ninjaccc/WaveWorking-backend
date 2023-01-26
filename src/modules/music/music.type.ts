@@ -39,4 +39,5 @@ export interface ChannelData {
   /** dj待審核插播音樂id列表 */
   toBeAuditedList: PlayData[];
   pageSizeOfHistory: number;
+  managerId?: string;
 }
