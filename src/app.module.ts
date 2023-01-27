@@ -10,6 +10,7 @@ import { ChannelsModule } from './modules/channels/channels.module';
 import { EventsModule } from './modules/events/events.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CronModule } from './modules/cron/cron.module';
+import { LikesModule } from './modules/likes/likes.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { CronModule } from './modules/cron/cron.module';
     YoutubeModule,
     ChannelsModule,
     CronModule,
+    LikesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
