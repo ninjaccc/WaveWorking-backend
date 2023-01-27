@@ -55,7 +55,7 @@ export class Music {
 
   // likes
   @Prop({ type: Map, of: String })
-  likes: Record<string, string>;
+  likes: Record<string, boolean>;
 
   // createdAt
   @Prop()

@@ -120,7 +120,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
 
     // send history to user
-    const historyData = await this.getHistory(channelId, 1);
+    const historyData = await this.getHistoryWithLikes(channelId, 1);
     client.emit('update-history', historyData);
 
     // dj need current audited list
@@ -411,6 +411,21 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
   }
 
+  // #TODO
+  @UseGuards(WsAuthGuard)
+  @SubscribeMessage('like-music-from-history')
+  async likeMusicFromHistory(
+    client: WebsocketWithUserInfo,
+    data: { musicId: string },
+  ) {
+    console.log('like-music-from-history');
+    const { musicId } = data;
+    const { userId, channelId, pageIndexOfHistory } = client;
+
+    await this.likeService.add(musicId, channelId, userId);
+    await this.sendHistoryOnAChannel(channelId, pageIndexOfHistory);
+  }
+
   sendPlaylistOnAChannel(channelId: string) {
     this.server.in(channelId).emit(
       'update-playlist',
@@ -420,28 +435,30 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
   }
 
-  async getHistoryData(channelId: string, pageIndex: number) {
-    const pageSize = this.channelCache[channelId].pageSizeOfHistory;
-    const [musicTotalCount, musicList] = await Promise.all([
-      this.musicService.getTotalCount(),
-      this.musicService.getByQuery(
-        {
-          channelId,
-        },
-        {
-          skip: (Number(pageIndex) - 1) * Number(pageSize),
-          limit: Number(pageSize),
-          sort: { createdAt: 'asc' },
-        },
-      ),
-    ]);
+  async getHistoryWithLikes(channelId: string, pageIndex: number) {
+    const history = await this.getHistory(channelId, pageIndex);
+    const allLike = await this.likeService.getByChannel(channelId);
+    await bindLikes();
 
-    return {
-      pageIndex,
-      totalCount: musicTotalCount,
-      pageCount: Math.ceil(musicTotalCount / pageSize),
-      list: musicList,
-    };
+    async function bindLikes() {
+      history.list.forEach((play) => {
+        const likeData = allLike.find((like) => {
+          return (
+            like.channelId === play.channelId &&
+            (like.music as unknown as string) === play.musicId
+          );
+        });
+        if (likeData) {
+          play.likes = likeData.users.reduce((prev, curr) => {
+            const userId = curr as unknown as string;
+            prev[userId] = true;
+            return prev;
+          }, {} as Record<string, boolean>);
+        }
+      });
+    }
+
+    return history;
   }
 
   async sendHistoryToUser(
@@ -449,13 +466,13 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     channelId: string,
     pageIndex: number,
   ) {
-    const historyData = await this.getHistoryData(channelId, pageIndex);
+    const historyData = await this.getHistoryWithLikes(channelId, pageIndex);
 
     client.emit('update-history', historyData);
   }
 
   async sendHistoryOnAChannel(channelId: string, pageIndex: number) {
-    const historyData = await this.getHistoryData(channelId, pageIndex);
+    const historyData = await this.getHistoryWithLikes(channelId, pageIndex);
 
     this.server.in(channelId).emit('update-history', historyData);
   }
@@ -562,6 +579,29 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
       if (likeData) {
         play.likes = likeData.users.reduce((prev, curr) => {
+          const userId = curr as unknown as string;
+          prev[userId] = true;
+          return prev;
+        }, {} as Record<string, boolean>);
+      }
+    });
+  }
+
+  async updateLikesInHistory(channelId: string, pageIndex: number) {
+    const [allLike, historyData] = await Promise.all([
+      this.likeService.getByChannel(channelId),
+      this.getHistoryWithLikes(channelId, pageIndex),
+    ]);
+
+    historyData.list.forEach((history) => {
+      const likeData = allLike.find((like) => {
+        return (
+          like.channelId === history.channelId &&
+          (like.music as unknown as string) === history.musicId
+        );
+      });
+      if (likeData) {
+        history.likes = likeData.users.reduce((prev, curr) => {
           const userId = curr as unknown as string;
           prev[userId] = true;
           return prev;
