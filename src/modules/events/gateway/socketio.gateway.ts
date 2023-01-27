@@ -30,6 +30,7 @@ import {
 import { UsersService } from 'src/modules/users/users.service';
 import { CronService } from 'src/modules/cron/cron.service';
 import { ChannelsService } from 'src/modules/channels/channels.service';
+import { LikesService } from 'src/modules/likes/likes.service';
 
 interface WebsocketWithUserInfo extends Socket {
   secWsKey: string;
@@ -72,6 +73,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private cronService: CronService,
     private musicService: MusicService,
     private channelService: ChannelsService,
+    private likeService: LikesService,
   ) {}
 
   /** 有人連進來的時候觸發 */
@@ -153,6 +155,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
 
     this.channelCache[channelId].playList.push(playData);
+    await this.updateLikesInPlaylist(channelId);
     this.server.to(channelId).emit(
       'update-playlist',
       this.channelCache[channelId].playList.map((item) =>
@@ -319,13 +322,35 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @UseGuards(WsAuthGuard)
   @SubscribeMessage('like')
   async likeMusic(client: WebsocketWithUserInfo, data: AddMusicEventData) {
-    this.likeMusicAndSend(client.userId, data.musicId, true, client.channelId);
+    const { musicId } = data;
+    const { userId, channelId } = client;
+
+    await this.likeService.add(musicId, channelId, userId);
+    await this.updateLikesInPlaylist(channelId);
+
+    this.server.in(channelId).emit(
+      'update-playlist',
+      this.channelCache[channelId].playList.map((item) =>
+        this.toClientFormat(item),
+      ),
+    );
   }
 
   @UseGuards(WsAuthGuard)
   @SubscribeMessage('unlike')
   async unlikeMusic(client: WebsocketWithUserInfo, data: AddMusicEventData) {
-    this.likeMusicAndSend(client.userId, data.musicId, false, client.channelId);
+    const { musicId } = data;
+    const { userId, channelId } = client;
+
+    await this.likeService.remove(musicId, channelId, userId);
+    await this.updateLikesInPlaylist(channelId);
+
+    this.server.in(channelId).emit(
+      'update-playlist',
+      this.channelCache[channelId].playList.map((item) =>
+        this.toClientFormat(item),
+      ),
+    );
   }
 
   @Roles(Role.Manager)
@@ -351,18 +376,6 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { channelId } = client;
     client.pageIndexOfHistory = data.pageIndex;
     this.sendHistoryToUser(client, channelId, data.pageIndex);
-  }
-
-  async likeMusicAndSend(
-    userId: string,
-    musicId: string,
-    like: boolean,
-    channelId: string,
-  ) {
-    this.channelCache[channelId].playList
-      .filter((item) => item.musicId === musicId)
-      .forEach((item) => (item.likes[userId] = like));
-    this.sendPlaylistOnAChannel(channelId);
   }
 
   @UseGuards(WsAuthGuard)
@@ -514,6 +527,8 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       })),
     );
 
+    await this.updateLikesInPlaylist(channelId);
+
     this.server.to(channelId).emit(
       'update-playlist',
       this.channelCache[channelId].playList.map((item) =>
@@ -533,13 +548,26 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         i.channelId === channelId
       );
     }) as unknown as WebsocketWithUserInfo | undefined;
-    // sockets.find(s => s)
-    // this.channelService.getManagerId(channelId)
-    // return Array.from(this.server.clients).find(
-    //   (item) =>
-    //     (item.roleId as unknown as Role) === Role.Manager &&
-    //     item.channelId === channelId,
-    // );
+  }
+
+  async updateLikesInPlaylist(channelId: string) {
+    const allLike = await this.likeService.getByChannel(channelId);
+
+    this.channelCache[channelId].playList.forEach((play) => {
+      const likeData = allLike.find((like) => {
+        return (
+          like.channelId === play.channelId &&
+          (like.music as unknown as string) === play.musicId
+        );
+      });
+      if (likeData) {
+        play.likes = likeData.users.reduce((prev, curr) => {
+          const userId = curr as unknown as string;
+          prev[userId] = true;
+          return prev;
+        }, {} as Record<string, boolean>);
+      }
+    });
   }
 
   async generatePlayData(musicId: string, userId: string, channelId: string) {

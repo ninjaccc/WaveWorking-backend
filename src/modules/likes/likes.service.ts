@@ -11,6 +11,10 @@ export class LikesService {
     return this.likeModel.find();
   }
 
+  async getByChannel(channelId: string) {
+    return this.likeModel.find({ channelId });
+  }
+
   async add(musicId: string, channelId: string, userId: string) {
     const existLike = await this.likeModel.findOne({
       music: musicId,

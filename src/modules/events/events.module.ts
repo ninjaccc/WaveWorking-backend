@@ -7,9 +7,11 @@ import { UsersModule } from '../users/users.module';
 import { CronModule } from '../cron/cron.module';
 import { EventsGateway } from './gateway/socketio.gateway';
 import { ChannelsModule } from '../channels/channels.module';
+import { LikesModule } from '../likes/likes.module';
 
 @Module({
   imports: [
+    LikesModule,
     ChannelsModule,
     MusicModule,
     UsersModule,
