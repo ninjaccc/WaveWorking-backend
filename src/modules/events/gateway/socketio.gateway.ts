@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { remove, findLastIndex } from 'lodash';
 import { HttpException, Injectable, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Server, Socket } from 'socket.io';
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
@@ -10,26 +11,36 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { IncomingMessage } from 'http';
-import { Server } from 'ws';
-import { WsAuthGuard } from '../auth/guards/ws-auth.guard';
-import { Role, Roles } from '../auth/role.constant';
-import { MusicService } from '../music/music.service';
-import { ChannelData, PlayData } from '../music/music.type';
+import { WsAuthGuard } from 'src/modules/auth/guards/ws-auth.guard';
+import { Role, Roles } from 'src/modules/auth/role.constant';
+import { MusicService } from 'src/modules/music/music.service';
+import { ChannelData, PlayData } from 'src/modules/music/music.type';
 import {
   AddMusicEventData,
   DeleteMusicEventData,
   InsertMusicEventData,
   JoinChannelEventData,
-  WebsocketWithUserInfo,
   UpdateCurrentMusicEventData,
   UpdateCurrentTimeEventData,
   SetPageSizeOfHistoryEventDate,
   SetPageIndexOfHistoryEventDate,
   AddMusicFromHistoryEventData,
   LikeMusicFromHistoryEventData,
-} from './events.type';
-import { UsersService } from '../users/users.service';
-import { CronService } from '../cron/cron.service';
+} from '../events.type';
+import { UsersService } from 'src/modules/users/users.service';
+import { CronService } from 'src/modules/cron/cron.service';
+import { ChannelsService } from 'src/modules/channels/channels.service';
+import { LikesService } from 'src/modules/likes/likes.service';
+
+interface WebsocketWithUserInfo extends Socket {
+  secWsKey: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  channelId: string;
+  roleId: string;
+  pageIndexOfHistory: number;
+}
 
 interface DecodeData {
   id: string;
@@ -41,11 +52,15 @@ interface DecodeData {
 
 const DEFAULT_PAGE_SIZE_OF_HISTORY = 10;
 
-@WebSocketGateway()
+@WebSocketGateway({
+  cors: {
+    origin: '*',
+  },
+})
 @Injectable()
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server<WebsocketWithUserInfo>;
+  server: Server;
 
   /**
    * 頻道資訊緩存
@@ -57,48 +72,62 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private jwtService: JwtService,
     private cronService: CronService,
     private musicService: MusicService,
+    private channelService: ChannelsService,
+    private likeService: LikesService,
   ) {}
 
   /** 有人連進來的時候觸發 */
   handleConnection(client: WebsocketWithUserInfo, request: IncomingMessage) {
+    console.log(`有人進來摟: ${client.id}`);
     // #TODO request.socket.remoteAddress可以取得客戶端ip
     client.send(
       JSON.stringify({
         event: 'connect',
-        data: 'success',
+        // data: 'success',
+        data: client.id,
       }),
     );
   }
 
   handleDisconnect(client: WebsocketWithUserInfo) {
     // #TODO 判斷用戶關閉網站後，如何知道是該userId離開頻道
-    console.log(client.url);
+    // console.log(client);
   }
 
   @SubscribeMessage('join-channel')
   async joinChannel(client: WebsocketWithUserInfo, data: JoinChannelEventData) {
     const token = data.token;
-    const decodeData: DecodeData = await this.jwtService.verifyAsync(token);
 
+    const decodeData: DecodeData = await this.jwtService.verifyAsync(token);
     const { channelId } = decodeData;
 
-    await this.saveInfoToWebsocketClient(client, decodeData);
-    this.initChannelCache(channelId);
+    await Promise.all([
+      this.saveInfoToWebsocketClient(client, decodeData),
+      this.initChannelCache(channelId),
+    ]);
 
-    this.server.clients.forEach((single) => {
-      single.send(
-        JSON.stringify(`使用者${client.userId}已經進入${client.channelId}頻道`),
-      );
-    });
+    client.join(channelId);
+    client
+      .to(channelId)
+      .emit(`使用者${client.userId}已經進入${client.channelId}頻道`);
 
-    this.sendPlaylistToUser(client.userId, client.channelId);
-    this.sendHistoryToUser(client.userId, client.channelId, 1);
+    // send playlist to user
+    client.emit(
+      'update-playlist',
+      this.channelCache[channelId].playList.map((item) =>
+        this.toClientFormat(item),
+      ),
+    );
 
-    // 如果當前進入頻道的是dj
+    // send history to user
+    const historyData = await this.getHistoryWithLikes(channelId, 1);
+    client.emit('update-history', historyData);
+
+    // dj need current audited list
     if (Number(client.roleId) === Role.Manager) {
       const toBeAuditedList = this.channelCache[channelId].toBeAuditedList;
-      this.sendToUser(
-        client.userId,
+      client.emit(
+        'update-audited-list',
         toBeAuditedList.map((item) => {
           const { name, author, createdAt, _id, thumbnail, duration } = item;
           return {
@@ -110,7 +139,6 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
             duration,
           };
         }),
-        'update-audited-list',
       );
     }
   }
@@ -127,19 +155,32 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
 
     this.channelCache[channelId].playList.push(playData);
-    this.sendPlaylistOnAChannel(channelId);
+    await this.updateLikesInPlaylist(channelId);
+    this.server.to(channelId).emit(
+      'update-playlist',
+      this.channelCache[channelId].playList.map((item) =>
+        this.toClientFormat(item),
+      ),
+    );
   }
 
   @Roles(Role.Manager)
   @UseGuards(WsAuthGuard)
   @SubscribeMessage('delete-music')
   async deleteMusic(client: WebsocketWithUserInfo, data: DeleteMusicEventData) {
+    const channelId = client.channelId;
+
     remove(
-      this.channelCache[client.channelId].playList,
+      this.channelCache[channelId].playList,
       (item) => item._id === data._id,
     );
 
-    this.sendPlaylistOnAChannel(client.channelId);
+    this.server.to(channelId).emit(
+      'update-playlist',
+      this.channelCache[channelId].playList.map((item) =>
+        this.toClientFormat(item),
+      ),
+    );
   }
 
   /** 使用者申請插播至歌單 */
@@ -158,23 +199,22 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     this.channelCache[channelId].toBeAuditedList.push(playData);
 
-    const djClient = this.findDjClientInChannel(channelId);
+    const djClient = await this.findDjClientInChannel(channelId);
+    console.log(djClient);
     if (!djClient) return;
 
-    djClient.send(
-      JSON.stringify({
-        event: 'update-audited-list',
-        data: this.channelCache[channelId].toBeAuditedList.map((item) => {
-          const { name, author, createdAt, _id, thumbnail, duration } = item;
-          return {
-            name,
-            author,
-            createdAt,
-            _id,
-            thumbnail,
-            duration,
-          };
-        }),
+    djClient.emit(
+      'update-audited-list',
+      this.channelCache[channelId].toBeAuditedList.map((item) => {
+        const { name, author, createdAt, _id, thumbnail, duration } = item;
+        return {
+          name,
+          author,
+          createdAt,
+          _id,
+          thumbnail,
+          duration,
+        };
       }),
     );
   }
@@ -213,22 +253,18 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     // update audited list for dj
-    client.send(
-      JSON.stringify({
-        event: 'update-audited-list',
-        data: this.channelCache[client.channelId].toBeAuditedList.map(
-          (item) => {
-            const { name, author, createdAt, _id, thumbnail, duration } = item;
-            return {
-              name,
-              author,
-              createdAt,
-              _id,
-              thumbnail,
-              duration,
-            };
-          },
-        ),
+    client.emit(
+      'update-audited-list',
+      this.channelCache[client.channelId].toBeAuditedList.map((item) => {
+        const { name, author, createdAt, _id, thumbnail, duration } = item;
+        return {
+          name,
+          author,
+          createdAt,
+          _id,
+          thumbnail,
+          duration,
+        };
       }),
     );
   }
@@ -280,19 +316,41 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client: WebsocketWithUserInfo,
     data: UpdateCurrentTimeEventData,
   ) {
-    this.sendOnAChannel(client.channelId, data, 'update-current-time');
+    this.server.in(client.channelId).emit('update-current-time', data);
   }
 
   @UseGuards(WsAuthGuard)
   @SubscribeMessage('like')
   async likeMusic(client: WebsocketWithUserInfo, data: AddMusicEventData) {
-    this.likeMusicAndSend(client.userId, data.musicId, true, client.channelId);
+    const { musicId } = data;
+    const { userId, channelId } = client;
+
+    await this.likeService.add(musicId, channelId, userId);
+    await this.updateLikesInPlaylist(channelId);
+
+    this.server.in(channelId).emit(
+      'update-playlist',
+      this.channelCache[channelId].playList.map((item) =>
+        this.toClientFormat(item),
+      ),
+    );
   }
 
   @UseGuards(WsAuthGuard)
   @SubscribeMessage('unlike')
   async unlikeMusic(client: WebsocketWithUserInfo, data: AddMusicEventData) {
-    this.likeMusicAndSend(client.userId, data.musicId, false, client.channelId);
+    const { musicId } = data;
+    const { userId, channelId } = client;
+
+    await this.likeService.remove(musicId, channelId, userId);
+    await this.updateLikesInPlaylist(channelId);
+
+    this.server.in(channelId).emit(
+      'update-playlist',
+      this.channelCache[channelId].playList.map((item) =>
+        this.toClientFormat(item),
+      ),
+    );
   }
 
   @Roles(Role.Manager)
@@ -315,9 +373,9 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client: WebsocketWithUserInfo,
     data: SetPageIndexOfHistoryEventDate,
   ) {
-    const { channelId, userId } = client;
+    const { channelId } = client;
     client.pageIndexOfHistory = data.pageIndex;
-    this.sendHistoryToUser(userId, channelId, data.pageIndex);
+    this.sendHistoryToUser(client, channelId, data.pageIndex);
   }
 
   @UseGuards(WsAuthGuard)
@@ -353,55 +411,81 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
   }
 
-  async generatePlayData(musicId: string, userId: string, channelId: string) {
-    const musicData = await this.musicService.getInfoById(musicId);
-
-    return {
-      ...musicData,
-      userId,
-      likes: {},
-      channelId,
-      createdAt: Date.now().toString(),
-      onTime: null,
-      // 暫時的流水號id，之後真正審核通過被加入music collection再依靠mongoose創建的新id取代
-      _id: uuidv4(),
-    } as PlayData;
-  }
-
-  async saveInfoToWebsocketClient(
+  // #TODO
+  @UseGuards(WsAuthGuard)
+  @SubscribeMessage('like-music-from-history')
+  async likeMusicFromHistory(
     client: WebsocketWithUserInfo,
-    decodeData: DecodeData,
+    data: { musicId: string },
   ) {
-    const { id, channelId, roleId } = decodeData;
-    client.channelId = channelId;
-    client.roleId = roleId;
-    client.userId = id;
+    console.log('like-music-from-history');
+    const { musicId } = data;
+    const { userId, channelId, pageIndexOfHistory } = client;
 
-    const userData = await this.userService.findById(id);
-    client.userName = userData.name;
-    client.userAvatar = userData.avatar;
+    await this.likeService.add(musicId, channelId, userId);
+    await this.sendHistoryOnAChannel(channelId, pageIndexOfHistory);
   }
 
-  initChannelCache(channelId: string) {
-    if (!this.channelCache[channelId]) {
-      this.channelCache[channelId] = {
-        playList: [],
-        toBeAuditedList: [],
-        pageSizeOfHistory: DEFAULT_PAGE_SIZE_OF_HISTORY,
-      };
+  sendPlaylistOnAChannel(channelId: string) {
+    this.server.in(channelId).emit(
+      'update-playlist',
+      this.channelCache[channelId].playList.map((item) =>
+        this.toClientFormat(item),
+      ),
+    );
+  }
+
+  async getHistoryWithLikes(channelId: string, pageIndex: number) {
+    const history = await this.getHistory(channelId, pageIndex);
+    const allLike = await this.likeService.getByChannel(channelId);
+    await bindLikes();
+
+    async function bindLikes() {
+      history.list.forEach((play) => {
+        const likeData = allLike.find((like) => {
+          return (
+            like.channelId === play.channelId &&
+            (like.music as unknown as string) === play.musicId
+          );
+        });
+        if (likeData) {
+          play.likes = likeData.users.reduce((prev, curr) => {
+            const userId = curr as unknown as string;
+            prev[userId] = true;
+            return prev;
+          }, {} as Record<string, boolean>);
+        }
+      });
     }
+
+    return history;
   }
 
-  async likeMusicAndSend(
-    userId: string,
-    musicId: string,
-    like: boolean,
+  async sendHistoryToUser(
+    client: WebsocketWithUserInfo,
     channelId: string,
+    pageIndex: number,
   ) {
-    this.channelCache[channelId].playList
-      .filter((item) => item.musicId === musicId)
-      .forEach((item) => (item.likes[userId] = like));
-    this.sendPlaylistOnAChannel(channelId);
+    const historyData = await this.getHistoryWithLikes(channelId, pageIndex);
+
+    client.emit('update-history', historyData);
+  }
+
+  async sendHistoryOnAChannel(channelId: string, pageIndex: number) {
+    const historyData = await this.getHistoryWithLikes(channelId, pageIndex);
+
+    this.server.in(channelId).emit('update-history', historyData);
+  }
+
+  /**
+   * 取得歷史紀錄最後一頁位於第幾頁。
+   * 注意 : pageIndex最小值為1
+   */
+  async getLastPageIndexOfHistory(channelId: string) {
+    const pageSize = this.channelCache[channelId].pageSizeOfHistory;
+    const total = await this.musicService.getTotalCount();
+
+    return Math.floor(total / pageSize) + 1;
   }
 
   // #FIX 邏輯需要再調整
@@ -460,141 +544,136 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       })),
     );
 
-    this.sendPlaylistOnAChannel(channelId);
+    await this.updateLikesInPlaylist(channelId);
+
+    this.server.to(channelId).emit(
+      'update-playlist',
+      this.channelCache[channelId].playList.map((item) =>
+        this.toClientFormat(item),
+      ),
+    );
   }
 
-  sendAll(data: any) {
-    this.server.clients.forEach((single) => {
-      single.send(JSON.stringify(data));
+  async findDjClientInChannel(channelId: string) {
+    const sockets = await this.server.in(channelId).fetchSockets();
+
+    return sockets.find((item) => {
+      const i = item as unknown as WebsocketWithUserInfo;
+
+      return (
+        (i.roleId as unknown as Role) === Role.Manager &&
+        i.channelId === channelId
+      );
+    }) as unknown as WebsocketWithUserInfo | undefined;
+  }
+
+  async updateLikesInPlaylist(channelId: string) {
+    const allLike = await this.likeService.getByChannel(channelId);
+
+    this.channelCache[channelId].playList.forEach((play) => {
+      const likeData = allLike.find((like) => {
+        return (
+          like.channelId === play.channelId &&
+          (like.music as unknown as string) === play.musicId
+        );
+      });
+      if (likeData) {
+        play.likes = likeData.users.reduce((prev, curr) => {
+          const userId = curr as unknown as string;
+          prev[userId] = true;
+          return prev;
+        }, {} as Record<string, boolean>);
+      }
     });
   }
 
-  sendToUser(userId: string, data: any, event: string) {
-    const currentClient = this.findClientByUser(userId);
-    if (currentClient) {
-      currentClient.send(JSON.stringify({ event, data }));
-    }
+  async updateLikesInHistory(channelId: string, pageIndex: number) {
+    const [allLike, historyData] = await Promise.all([
+      this.likeService.getByChannel(channelId),
+      this.getHistoryWithLikes(channelId, pageIndex),
+    ]);
+
+    historyData.list.forEach((history) => {
+      const likeData = allLike.find((like) => {
+        return (
+          like.channelId === history.channelId &&
+          (like.music as unknown as string) === history.musicId
+        );
+      });
+      if (likeData) {
+        history.likes = likeData.users.reduce((prev, curr) => {
+          const userId = curr as unknown as string;
+          prev[userId] = true;
+          return prev;
+        }, {} as Record<string, boolean>);
+      }
+    });
   }
 
-  sendPlaylistToUser(userId: string, channelId: string) {
-    this.sendToUser(
+  async generatePlayData(musicId: string, userId: string, channelId: string) {
+    const musicData = await this.musicService.getInfoById(musicId);
+
+    return {
+      ...musicData,
       userId,
-      this.channelCache[channelId].playList.map((item) =>
-        this.toClientFormat(item),
-      ),
-      'update-playlist',
-    );
+      likes: {},
+      channelId,
+      createdAt: Date.now().toString(),
+      onTime: null,
+      // 暫時的流水號id，之後真正審核通過被加入music collection再依靠mongoose創建的新id取代
+      _id: uuidv4(),
+    } as PlayData;
   }
 
-  async sendHistoryToUser(
-    userId: string,
-    channelId: string,
-    pageIndex: number,
+  async getHistory(channelId: string, pageIndex: number) {
+    const pageSize = this.channelCache[channelId].pageSizeOfHistory;
+    const [musicTotalCount, musicList] = await Promise.all([
+      this.musicService.getTotalCount(),
+      this.musicService.getByQuery(
+        {
+          channelId,
+        },
+        {
+          skip: (Number(pageIndex) - 1) * Number(pageSize),
+          limit: Number(pageSize),
+          sort: { createdAt: 'asc' },
+        },
+      ),
+    ]);
+
+    return {
+      pageIndex,
+      totalCount: musicTotalCount,
+      pageCount: Math.ceil(musicTotalCount / pageSize),
+      list: musicList,
+    };
+  }
+
+  async saveInfoToWebsocketClient(
+    client: WebsocketWithUserInfo,
+    decodeData: DecodeData,
   ) {
-    const pageSize = this.channelCache[channelId].pageSizeOfHistory;
-    const [musicTotalCount, musicList] = await Promise.all([
-      this.musicService.getTotalCount(),
-      this.musicService.getByQuery(
-        {
-          channelId,
-        },
-        {
-          skip: (Number(pageIndex) - 1) * Number(pageSize),
-          limit: Number(pageSize),
-          sort: { createdAt: 'asc' },
-        },
-      ),
-    ]);
+    const { id, channelId, roleId } = decodeData;
+    client.channelId = channelId;
+    client.roleId = roleId;
+    client.userId = id;
 
-    this.sendToUser(
-      userId,
-      {
-        pageIndex,
-        totalCount: musicTotalCount,
-        pageCount: Math.ceil(musicTotalCount / pageSize),
-        list: musicList,
-      },
-      'update-history',
-    );
+    const userData = await this.userService.findById(id);
+    client.userName = userData.name;
+    client.userAvatar = userData.avatar;
   }
 
-  sendPlaylistOnAChannel(channelId: string) {
-    this.sendOnAChannel(
-      channelId,
-      this.channelCache[channelId].playList.map((item) =>
-        this.toClientFormat(item),
-      ),
-      'update-playlist',
-    );
-  }
+  async initChannelCache(channelId: string) {
+    if (!this.channelCache[channelId]) {
+      const managerId = await this.channelService.getManagerId(channelId);
 
-  async sendHistoryOnAChannel(channelId: string, pageIndex: number) {
-    const pageSize = this.channelCache[channelId].pageSizeOfHistory;
-    const [musicTotalCount, musicList] = await Promise.all([
-      this.musicService.getTotalCount(),
-      this.musicService.getByQuery(
-        {
-          channelId,
-        },
-        {
-          skip: (Number(pageIndex) - 1) * Number(pageSize),
-          limit: Number(pageSize),
-          sort: { createdAt: 'asc' },
-        },
-      ),
-    ]);
-    this.sendOnAChannel(
-      channelId,
-      {
-        pageIndex,
-        totalCount: musicTotalCount,
-        pageCount: Math.ceil(musicTotalCount / pageSize),
-        list: musicList,
-      },
-      'update-history',
-    );
-  }
-
-  /**
-   * 取得歷史紀錄最後一頁位於第幾頁。
-   * 注意 : pageIndex最小值為1
-   */
-  async getLastPageIndexOfHistory(channelId: string) {
-    const pageSize = this.channelCache[channelId].pageSizeOfHistory;
-    const total = await this.musicService.getTotalCount();
-
-    return Math.floor(total / pageSize) + 1;
-  }
-
-  sendOnAChannel(channelId: string, data: any, event: string) {
-    this.filterClientsByChannel(channelId).forEach((client) =>
-      client.send(
-        JSON.stringify({
-          event,
-          data,
-        }),
-      ),
-    );
-  }
-
-  filterClientsByChannel(channelId: string) {
-    return Array.from(this.server.clients).filter(
-      (client) => client.channelId === channelId,
-    );
-  }
-
-  findDjClientInChannel(channelId: string) {
-    return Array.from(this.server.clients).find(
-      (item) =>
-        (item.roleId as unknown as Role) === Role.Manager &&
-        item.channelId === channelId,
-    );
-  }
-
-  findClientByUser(userId: string) {
-    return Array.from(this.server.clients).find(
-      (client) => client.userId === userId,
-    );
+      this.channelCache[channelId] = {
+        playList: [],
+        toBeAuditedList: [],
+        pageSizeOfHistory: DEFAULT_PAGE_SIZE_OF_HISTORY,
+        managerId,
+      };
+    }
   }
 
   /** 移除客戶端不需要的資料，並回傳 */

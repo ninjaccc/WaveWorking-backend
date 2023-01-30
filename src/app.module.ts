@@ -9,6 +9,8 @@ import { YoutubeModule } from './modules/youtube/youtube.module';
 import { ChannelsModule } from './modules/channels/channels.module';
 import { EventsModule } from './modules/events/events.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { CronModule } from './modules/cron/cron.module';
+import { LikesModule } from './modules/likes/likes.module';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { AuthModule } from './modules/auth/auth.module';
     MusicModule,
     YoutubeModule,
     ChannelsModule,
+    CronModule,
+    LikesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

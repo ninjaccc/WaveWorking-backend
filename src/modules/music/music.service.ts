@@ -29,6 +29,11 @@ export class MusicService {
     return originItems.map((item) => this.transformVideoResponse(item));
   }
 
+  /** 設定 */
+  findByIdAndUpdate(id: string, updateData: Record<string, any>) {
+    return this.musicModel.findByIdAndUpdate(id, updateData, { new: true });
+  }
+
   async getInfoById(id: string): Promise<MusicData | null> {
     const items = (await this.youtubeService.getInfoByVideoIds([id])).data
       .items;
@@ -39,6 +44,32 @@ export class MusicService {
 
   async getAll() {
     return this.musicModel.find();
+  }
+
+  /** 取得總共幾筆資料 */
+  async getTotalCount() {
+    return this.musicModel.countDocuments({});
+  }
+
+  async getByQuery(
+    query: Record<string, any>,
+    options?: {
+      select?: string;
+      sort?: any;
+      skip?: number;
+      limit?: number;
+    },
+  ) {
+    if (!options) {
+      return this.musicModel.find(query);
+    } else {
+      return this.musicModel
+        .find(query)
+        .select(options.select || '')
+        .sort(options.sort || { createdAt: 'desc' })
+        .skip(options.skip || 0)
+        .limit(options.limit || 12);
+    }
   }
 
   async add(params: AddMusicParams) {

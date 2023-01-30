@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws';
-import { MusicData } from '../music/music.type';
+import { MusicData, PlayData } from '../music/music.type';
 
 export interface WebsocketWithUserInfo extends WebSocket {
   /** 客戶端隨機產生的隨機id */
@@ -9,6 +9,7 @@ export interface WebsocketWithUserInfo extends WebSocket {
   userAvatar: string;
   channelId: string;
   roleId: string;
+  pageIndexOfHistory: number;
 }
 
 export interface JoinChannelEventData {
@@ -38,4 +39,20 @@ export type InsertMusicEventData = Array<{
   top: boolean;
 }>;
 
-export type UpdatePlayListEventData = MusicData[];
+export interface SetPageSizeOfHistoryEventDate {
+  pageSize: number;
+}
+
+export interface SetPageIndexOfHistoryEventDate {
+  pageIndex: number;
+}
+
+export interface LikeMusicFromHistoryEventData {
+  _id: string;
+  musicId: string;
+}
+
+export interface AddMusicFromHistoryEventData {
+  _id: string;
+  musicId: string;
+}

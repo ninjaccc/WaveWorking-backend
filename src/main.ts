@@ -8,7 +8,6 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
-  app.useWebSocketAdapter(new WsAdapter(app));
   app.enableCors();
 
   const config = new DocumentBuilder()
@@ -20,6 +19,8 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
+  // #NOTICE 好像在第二個參數加上0.0.0.0，連線就會一直斷開並且持續重連
+  // await app.listen(3000, '0.0.0.0');
   await app.listen(3000);
 }
 bootstrap();

@@ -55,7 +55,7 @@ export class Music {
 
   // likes
   @Prop({ type: Map, of: String })
-  likes: Record<string, string>;
+  likes: Record<string, boolean>;
 
   // createdAt
   @Prop()
@@ -100,6 +100,14 @@ export class Music {
     format: 'string',
   })
   onTime: Date;
+
+  // 可以再被重新添加至當前撥放清單的時間
+  @Prop()
+  @ApiProperty({
+    example: '2022-09-22T12:40:56.757',
+    format: 'string',
+  })
+  canBeReAddedTime: Date;
 }
 
 export const MusicSchema = SchemaFactory.createForClass(Music);
